@@ -1,0 +1,44 @@
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+name = "workshop-mcp"
+version = "0.1.0"
+description = "Python MCP Agent Workshop - Keyword Search Tool"
+authors = ["Workshop Participant <participant@example.com>"]
+readme = "README.md"
+packages = [{include = "workshop_mcp", from = "src"}]
+
+[tool.poetry.dependencies]
+python = ">=3.10,<4.0"
+mcp = "^1.0.0"
+aiofiles = "^23.2.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.4.0"
+pytest-asyncio = "^0.21.0"
+black = "^23.0.0"
+isort = "^5.12.0"
+mypy = "^1.5.0"
+
+[tool.poetry.scripts]
+workshop-mcp-server = "workshop_mcp.server:main"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.black]
+line-length = 88
+target-version = ['py311']
+
+[tool.isort]
+profile = "black"
+line_length = 88
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
