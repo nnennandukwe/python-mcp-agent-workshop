@@ -1,5 +1,6 @@
 version = "1.0.0"
 model = "gemini-2.5-pro"
+execution_strategy = "act"
 
 [commands.keyword_analysis_agent]
 description = "Intelligent keyword distribution analysis agent using MCP keyword search tool"
@@ -59,5 +60,3 @@ Focus your analysis on:
 
 Provide specific, actionable insights based on the search results.
 """
-
-execution_strategy = "act"

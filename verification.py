@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/opt/homebrew/bin/python3.12
 """
 Workshop MCP Verification Script
 
@@ -86,6 +86,7 @@ class WorkshopVerifier:
         self.print_header("Python Version Check")
         
         version_info = sys.version_info
+        print(version_info)
         current_version = f"{version_info.major}.{version_info.minor}.{version_info.micro}"
         
         if version_info >= (3, 11):
@@ -361,8 +362,8 @@ if __name__ == "__main__":
             with open(agent_config_path, 'rb') as f:
                 config = tomllib.load(f)
             
-            # Check required sections
-            required_sections = ['agent', 'agent.instructions', 'agent.tools', 'agent.mcp_servers']
+            # Check required sections for the new TOML structure
+            required_sections = ['commands', 'commands.keyword_analysis_agent']
             
             for section in required_sections:
                 keys = section.split('.')
@@ -376,6 +377,25 @@ if __name__ == "__main__":
                         break
                 else:
                     self.print_result(f"Config Section: {section}", True, "Present")
+            
+            # Check for required fields in the command
+            if 'commands' in config and 'keyword_analysis_agent' in config['commands']:
+                command_config = config['commands']['keyword_analysis_agent']
+                
+                required_fields = ['description', 'instructions']
+                for field in required_fields:
+                    if field in command_config:
+                        self.print_result(f"Command Field: {field}", True, "Present")
+                    else:
+                        self.print_result(f"Command Field: {field}", False, "Missing")
+            
+            # Check for top-level fields
+            top_level_fields = ['version', 'execution_strategy']
+            for field in top_level_fields:
+                if field in config:
+                    self.print_result(f"Top-level Field: {field}", True, "Present")
+                else:
+                    self.print_result(f"Top-level Field: {field}", False, "Missing")
                     
         except ImportError:
             # Fallback for Python < 3.11

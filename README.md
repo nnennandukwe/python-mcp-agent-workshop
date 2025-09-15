@@ -13,7 +13,7 @@ cd agent-mcp-workshop-python
 poetry install
 
 # Verify setup
-python verification.py
+python3 verification.py
 
 # Start the MCP server
 poetry run workshop-mcp-server
@@ -22,7 +22,7 @@ poetry run workshop-mcp-server
 poetry run pytest
 
 # Use the agent (requires Qodo)
-qodo agent run agents/sum_agent.toml
+qodo sum_agent
 ```
 
 ## 📋 Prerequisites
@@ -41,7 +41,7 @@ Before starting the workshop, ensure you have the following installed:
    - Verify: `poetry --version`
 
 3. **Qodo Command** (for agent execution)
-   - Install from [docs.qodo.ai/installation](https://docs.qodo.ai/installation)
+   - Install from [docs.qodo.ai/qodo-documentation/qodo-command](https://docs.qodo.ai/qodo-documentation/qodo-command)
    - Verify: `qodo --version`
 
 ### Optional Tools

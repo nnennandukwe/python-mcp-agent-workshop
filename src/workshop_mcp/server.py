@@ -21,7 +21,6 @@ from mcp.types import (
     ListToolsResult,
     Tool,
     TextContent,
-    JSONSchema,
 )
 
 from .keyword_search import KeywordSearchTool
@@ -72,9 +71,9 @@ class WorkshopMCPServer:
                         ".html, .css, .json, .xml, .md, .txt, .yml, .yaml, etc.) "
                         "and provides detailed statistics about matches."
                     ),
-                    inputSchema=JSONSchema(
-                        type="object",
-                        properties={
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
                             "keyword": {
                                 "type": "string",
                                 "description": "The keyword to search for (case-sensitive)",
@@ -90,8 +89,8 @@ class WorkshopMCPServer:
                                 "minItems": 1
                             }
                         },
-                        required=["keyword", "root_paths"]
-                    )
+                        "required": ["keyword", "root_paths"]
+                    }
                 )
             ]
         
