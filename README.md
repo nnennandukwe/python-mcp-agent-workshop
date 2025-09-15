@@ -122,7 +122,7 @@ poetry run python -m workshop_mcp.server
 
 ```bash
 # Run keyword analysis agent
-qodo agent run agents/sum_agent.toml \
+qodo sum_agent.toml \
   --input '{"keyword": "async", "root_paths": ["/path/to/code"]}'
 
 # Interactive mode

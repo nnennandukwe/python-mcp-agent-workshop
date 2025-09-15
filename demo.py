@@ -117,7 +117,7 @@ def main():
     print(f"  3. Run: python verification.py")
     print(f"  4. Start server: poetry run workshop-mcp-server")
     print(f"  5. Run tests: poetry run pytest")
-    print(f"  6. Use agent: qodo agent run agents/sum_agent.toml")
+    print(f"  6. Use agent: qodo sum_agent.toml")
     
     print(f"\n✨ Workshop MCP project is ready for development!")
 

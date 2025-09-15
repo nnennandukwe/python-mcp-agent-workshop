@@ -441,7 +441,7 @@ if __name__ == "__main__":
             print(f"\n{Colors.CYAN}{Colors.BOLD}You can now proceed with the workshop:{Colors.END}")
             print(f"{Colors.CYAN}1. Start the MCP server: poetry run workshop-mcp-server{Colors.END}")
             print(f"{Colors.CYAN}2. Run tests: poetry run pytest{Colors.END}")
-            print(f"{Colors.CYAN}3. Use the agent: qodo agent run agents/sum_agent.toml{Colors.END}")
+            print(f"{Colors.CYAN}3. Use the agent: qodo sum_agent.toml{Colors.END}")
     
     def run_all_checks(self) -> bool:
         """Run all verification checks."""

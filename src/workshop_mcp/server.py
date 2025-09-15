@@ -14,6 +14,7 @@ from typing import Any, Dict, List, Sequence
 from mcp.server import Server
 from mcp.server.models import InitializationOptions
 from mcp.server.stdio import stdio_server
+from mcp.server.lowlevel import NotificationOptions
 from mcp.types import (
     CallToolRequest,
     CallToolResult,
@@ -193,7 +194,7 @@ class WorkshopMCPServer:
                         server_name="workshop-mcp-server",
                         server_version="0.1.0",
                         capabilities=self.server.get_capabilities(
-                            notification_options=None,
+                            notification_options=NotificationOptions(),
                             experimental_capabilities={}
                         )
                     )
