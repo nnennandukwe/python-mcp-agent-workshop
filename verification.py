@@ -136,7 +136,7 @@ class WorkshopVerifier:
             "src/workshop_mcp/__init__.py",
             "src/workshop_mcp/server.py",
             "src/workshop_mcp/keyword_search.py",
-            "agents/sum_agent.toml",
+            "agents/keyword_analysis.toml",
             "tests/__init__.py",
             "tests/test_keyword_search.py",
             ".gitignore"
@@ -348,13 +348,13 @@ if __name__ == "__main__":
         """Verify agent configuration file is valid."""
         self.print_header("Agent Configuration Check")
         
-        agent_config_path = self.project_root / "agents" / "sum_agent.toml"
+        agent_config_path = self.project_root / "agents" / "keyword_analysis.toml"
         
         if not agent_config_path.exists():
-            self.print_result("Agent Config File", False, "sum_agent.toml not found")
+            self.print_result("Agent Config File", False, "keyword_analysis.toml not found")
             return
         
-        self.print_result("Agent Config File", True, "sum_agent.toml found")
+        self.print_result("Agent Config File", True, "keyword_analysis.toml found")
         
         # Try to parse TOML
         try:
@@ -441,7 +441,7 @@ if __name__ == "__main__":
             print(f"\n{Colors.CYAN}{Colors.BOLD}You can now proceed with the workshop:{Colors.END}")
             print(f"{Colors.CYAN}1. Start the MCP server: poetry run workshop-mcp-server{Colors.END}")
             print(f"{Colors.CYAN}2. Run tests: poetry run pytest{Colors.END}")
-            print(f"{Colors.CYAN}3. Use the agent: qodo sum_agent.toml{Colors.END}")
+            print(f"{Colors.CYAN}3. Use the agent: qodo keyword_analysis.toml{Colors.END}")
     
     def run_all_checks(self) -> bool:
         """Run all verification checks."""

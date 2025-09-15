@@ -24,7 +24,7 @@ poetry run workshop-mcp-server
 poetry run pytest
 
 # Use the agent (requires Qodo)
-qodo sum_agent
+qodo keyword_analysis
 ```
 
 ## 📋 Prerequisites
@@ -61,7 +61,7 @@ This workshop demonstrates a complete MCP ecosystem:
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   AI Agent      │───▶│   MCP Server    │───▶│  Keyword Tool   │
-│ (sum_agent.toml)│    │   (server.py)   │    │(keyword_search) │
+│ (keyword_analysis.toml)│    │   (server.py)   │    │(keyword_search) │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
          │                       │                       │
          │                       │                       ▼
@@ -89,7 +89,7 @@ This workshop demonstrates a complete MCP ecosystem:
    - Multi-format text file support
    - Statistical analysis and reporting
 
-3. **AI Agent** (`agents/sum_agent.toml`)
+3. **AI Agent** (`agents/keyword_analysis.toml`)
    - Intelligent keyword analysis
    - Pattern recognition
    - Refactoring recommendations
@@ -122,11 +122,8 @@ poetry run python -m workshop_mcp.server
 
 ```bash
 # Run keyword analysis agent
-qodo sum_agent.toml \
+qodo keyword_analysis \
   --input '{"keyword": "async", "root_paths": ["/path/to/code"]}'
-
-# Interactive mode
-qodo agent run agents/sum_agent.toml --interactive
 ```
 
 ### Testing
@@ -205,16 +202,16 @@ agent-mcp-workshop-python/
 ├── .gitignore                  # Git ignore rules
 │
 ├── src/workshop_mcp/           # Main package
-│   ├── __init__.py            # Package initialization
-│   ├── server.py              # MCP server implementation
-│   └── keyword_search.py      # Keyword search tool
+│   ├── __init__.py             # Package initialization
+│   ├── server.py               # MCP server implementation
+│   └── keyword_search.py       # Keyword search tool
 │
 ├── agents/                     # Agent configurations
-│   └── sum_agent.toml         # Keyword analysis agent
+│   └── keyword_analysis.toml   # Keyword analysis agent
 │
 └── tests/                      # Test suite
-    ├── __init__.py            # Test package init
-    └── test_keyword_search.py # Comprehensive tests
+    ├── __init__.py             # Test package init
+    └── test_keyword_search.py  # Comprehensive tests
 ```
 
 ## 🧪 Testing Strategy
@@ -268,7 +265,7 @@ The project includes comprehensive tests covering:
 5. **Agent Configuration Error**
    ```
    Error: Invalid TOML configuration
-   Solution: Validate TOML syntax in agents/sum_agent.toml
+   Solution: Validate TOML syntax in agents/keyword_analysis.toml
    ```
 
 ### Debug Mode
@@ -325,7 +322,7 @@ This checks:
 
 3. **Update Agent Configuration**
    ```toml
-   # agents/sum_agent.toml
+   # agents/keyword_analysis.toml
    [agent.tools]
    new_tool = { enabled = true }
    ```
@@ -347,7 +344,7 @@ TEXT_EXTENSIONS = {
 Enhance agent instructions:
 
 ```toml
-# agents/sum_agent.toml
+# agents/keyword_analysis.toml
 [agent.instructions]
 system_prompt = """
 Enhanced analysis including:

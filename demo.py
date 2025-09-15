@@ -24,7 +24,7 @@ def main():
         "src/workshop_mcp/__init__.py",
         "src/workshop_mcp/server.py",
         "src/workshop_mcp/keyword_search.py",
-        "agents/sum_agent.toml",
+        "agents/keyword_analysis.toml",
         "tests/__init__.py",
         "tests/test_keyword_search.py",
         ".gitignore"
