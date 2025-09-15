@@ -4,8 +4,10 @@ A comprehensive workshop for building AI agents using the Model Context Protocol
 
 ## 🚀 Quick Start
 
+
 ```bash
-# Clone the repository
+
+# Install the repository
 git clone <repository-url>
 cd agent-mcp-workshop-python
 
@@ -41,8 +43,10 @@ Before starting the workshop, ensure you have the following installed:
    - Verify: `poetry --version`
 
 3. **Qodo Command** (for agent execution)
-   - Install from [docs.qodo.ai/qodo-documentation/qodo-command](https://docs.qodo.ai/qodo-documentation/qodo-command)
+   - Install by running command `npm install -g @qodo/command`
+   - Log in with the command `qodo login`
    - Verify: `qodo --version`
+   - Additional resources: [docs.qodo.ai/qodo-documentation/qodo-command](https://docs.qodo.ai/qodo-documentation/qodo-command)
 
 ### Optional Tools
 

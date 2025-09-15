@@ -1,0 +1,7 @@
+version = "1.0"
+
+model = "gemini-2.5-pro"
+
+imports = [
+    "agents/sum_agent.toml"
+]
