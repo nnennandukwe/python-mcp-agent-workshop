@@ -15,7 +15,7 @@ cd agent-mcp-workshop-python
 poetry install
 
 # Verify setup
-python3 verification.py
+python3.12 verification.py
 
 # Start the MCP server
 poetry run workshop-mcp-server

@@ -86,7 +86,7 @@ class WorkshopVerifier:
         self.print_header("Python Version Check")
         
         version_info = sys.version_info
-        print(version_info)
+        print(">>>>>>>>>>>>>>>>>>>>>>", version_info)
         current_version = f"{version_info.major}.{version_info.minor}.{version_info.micro}"
         
         if version_info >= (3, 11):
@@ -363,7 +363,7 @@ if __name__ == "__main__":
                 config = tomllib.load(f)
             
             # Check required sections for the new TOML structure
-            required_sections = ['commands', 'commands.keyword_analysis_agent']
+            required_sections = ['commands', 'commands.keyword_analysis']
             
             for section in required_sections:
                 keys = section.split('.')
@@ -379,8 +379,8 @@ if __name__ == "__main__":
                     self.print_result(f"Config Section: {section}", True, "Present")
             
             # Check for required fields in the command
-            if 'commands' in config and 'keyword_analysis_agent' in config['commands']:
-                command_config = config['commands']['keyword_analysis_agent']
+            if 'commands' in config and 'keyword_analysis' in config['commands']:
+                command_config = config['commands']['keyword_analysis']
                 
                 required_fields = ['description', 'instructions']
                 for field in required_fields:
@@ -390,7 +390,7 @@ if __name__ == "__main__":
                         self.print_result(f"Command Field: {field}", False, "Missing")
             
             # Check for top-level fields
-            top_level_fields = ['version', 'execution_strategy']
+            top_level_fields = ['version']
             for field in top_level_fields:
                 if field in config:
                     self.print_result(f"Top-level Field: {field}", True, "Present")
@@ -441,7 +441,7 @@ if __name__ == "__main__":
             print(f"\n{Colors.CYAN}{Colors.BOLD}You can now proceed with the workshop:{Colors.END}")
             print(f"{Colors.CYAN}1. Start the MCP server: poetry run workshop-mcp-server{Colors.END}")
             print(f"{Colors.CYAN}2. Run tests: poetry run pytest{Colors.END}")
-            print(f"{Colors.CYAN}3. Use the agent: qodo keyword_analysis.toml{Colors.END}")
+            print(f"{Colors.CYAN}3. Use the agent: qodo keyword_analysis{Colors.END}")
     
     def run_all_checks(self) -> bool:
         """Run all verification checks."""
