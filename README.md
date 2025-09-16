@@ -4,7 +4,7 @@ A comprehensive workshop for building AI agents using the Model Context Protocol
 
 ## Link to Presentation Slides
 
-[Presentation Slides](https://github.com/nnennandukwe/python-mcp-agent-workshop/)
+[Presentation Slides](https://docs.google.com/presentation/d/1YBX8Vsso5QMDNduMP6S4g6pYUjCSisZCq69wvY4IL1c/edit?slide=id.g371d7545128_0_130#slide=id.g371d7545128_0_130)
 
 
 ## 🚀 Quick Start
