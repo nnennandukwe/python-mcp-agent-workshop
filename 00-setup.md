@@ -34,8 +34,7 @@ agent-mcp-workshop-python/
 Each chapter has its own branch with progressive content:
 
 ```bash
-# Start with setup
-git checkout 00-setup
+# Start with setup in the main branch (00-introduction.md and 00-setup.md)
 
 # Progress through chapters  
 git checkout 01-keyword-search
