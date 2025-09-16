@@ -38,8 +38,9 @@ Each chapter has its own branch with progressive content:
 git checkout 00-setup
 
 # Progress through chapters  
-git checkout 01-mcp-basics
-git checkout 02-keyword-search
+git checkout 01-keyword-search
+git checkout 02-mcp-server
+git checkout 03-agent-config
 # ... etc
 ```
 
