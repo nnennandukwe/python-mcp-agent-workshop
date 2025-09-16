@@ -1,9 +1,0 @@
-{
-  "mcpServers": {
-    "workshop-mcp": {
-      "command": "poetry",
-      "args": ["run", "workshop-mcp-server"],
-      "cwd": "/Users/nnennandukwe/Code/python-mcp-agent-workshop"
-    }
-  }
-}
