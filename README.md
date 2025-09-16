@@ -2,6 +2,11 @@
 
 A comprehensive workshop for building AI agents using the Model Context Protocol (MCP) in Python. This project demonstrates how to create MCP servers, implement custom tools, and configure intelligent agents for code analysis.
 
+## Link to Presentation Slides
+
+[Presentation Slides](https://github.com/nnennandukwe/python-mcp-agent-workshop/)
+
+
 ## 🚀 Quick Start
 
 
