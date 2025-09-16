@@ -73,7 +73,7 @@ def main():
     
     # Show agent configuration
     print(f"\n🤖 Agent Configuration:")
-    agent_config = project_root / "agents" / "sum_agent.toml"
+    agent_config = project_root / "agents" / "keyword_analysis.toml"
     if agent_config.exists():
         print(f"  ✅ Agent config found: {agent_config}")
         
@@ -117,7 +117,7 @@ def main():
     print(f"  3. Run: python verification.py")
     print(f"  4. Start server: poetry run workshop-mcp-server")
     print(f"  5. Run tests: poetry run pytest")
-    print(f"  6. Use agent: qodo sum_agent.toml")
+    print(f"  6. Use agent: qodo keyword_analysis")
     
     print(f"\n✨ Workshop MCP project is ready for development!")
 

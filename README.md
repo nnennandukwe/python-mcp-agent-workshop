@@ -61,7 +61,8 @@ This workshop demonstrates a complete MCP ecosystem:
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   AI Agent      │───▶│   MCP Server    │───▶│  Keyword Tool   │
-│ (keyword_analysis.toml)│    │   (server.py)   │    │(keyword_search) │
+│(keyword_analysis│    │   (server.py)   │    │(keyword_search) │
+│     .toml)      │    │                 │    │                 │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
          │                       │                       │
          │                       │                       ▼
@@ -281,7 +282,7 @@ poetry run workshop-mcp-server
 Run the comprehensive verification:
 
 ```bash
-python verification.py
+python3.12 verification.py
 ```
 
 This checks:
