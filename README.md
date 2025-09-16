@@ -24,7 +24,7 @@ poetry run workshop-mcp-server
 poetry run pytest
 
 # Use the agent (requires Qodo)
-qodo keyword_analysis
+qodo keyword_analysis --set keyword="{KEYWORD_HERE}"
 ```
 
 ## 📋 Prerequisites
@@ -122,8 +122,7 @@ poetry run python -m workshop_mcp.server
 
 ```bash
 # Run keyword analysis agent
-qodo keyword_analysis \
-  --input '{"keyword": "async", "root_paths": ["/path/to/code"]}'
+qodo keyword_analysis --set keyword="{KEYWORD_HERE}"
 ```
 
 ### Testing
