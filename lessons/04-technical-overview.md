@@ -1,4 +1,4 @@
-# Chapter 4: MCP-Qodo Integration - Detailed Technical Walkthrough
+# Chapter 4: MCP-Qodo Integration
 
 ## Learning Objectives
 By the end of this chapter, participants will understand:
