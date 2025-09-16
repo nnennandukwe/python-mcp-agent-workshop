@@ -294,65 +294,6 @@ This checks:
 - Unit test execution
 - Agent configuration validity
 
-## 🔄 Extension Guidelines
-
-### Adding New Tools
-
-1. **Create Tool Class**
-   ```python
-   # src/workshop_mcp/new_tool.py
-   class NewTool:
-       async def execute(self, **kwargs):
-           # Implementation
-           pass
-   ```
-
-2. **Register in Server**
-   ```python
-   # src/workshop_mcp/server.py
-   from .new_tool import NewTool
-   
-   # Add to list_tools handler
-   Tool(name="new_tool", ...)
-   
-   # Add to call_tool handler
-   elif name == "new_tool":
-       # Handle execution
-   ```
-
-3. **Update Agent Configuration**
-   ```toml
-   # agents/keyword_analysis.toml
-   [agent.tools]
-   new_tool = { enabled = true }
-   ```
-
-### Custom File Types
-
-Extend supported file types:
-
-```python
-# src/workshop_mcp/keyword_search.py
-TEXT_EXTENSIONS = {
-    '.py', '.java', '.js',  # existing
-    '.go', '.rs', '.cpp',   # add new types
-}
-```
-
-### Advanced Analysis
-
-Enhance agent instructions:
-
-```toml
-# agents/keyword_analysis.toml
-[agent.instructions]
-system_prompt = """
-Enhanced analysis including:
-- Semantic code analysis
-- Dependency mapping
-- Architecture recommendations
-"""
-```
 
 ## 📚 Learning Resources
 
@@ -367,7 +308,7 @@ Enhanced analysis including:
 
 ### Agent Development
 - [Qodo Documentation](https://docs.qodo.ai/)
-- [Agent Configuration Guide](https://docs.qodo.ai/agents/configuration)
+- [Agent Configuration Guide](https://docs.qodo.ai/qodo-documentation/qodo-command/features/creating-and-managing-agents)
 
 ## 🤝 Contributing
 
@@ -401,7 +342,8 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 - **Issues**: [GitHub Issues](https://github.com/workshop/mcp-python-agent/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/workshop/mcp-python-agent/discussions)
-- **Email**: workshop-support@example.com
+- **Email**: nnenna.n@qodo.ai
+- **Discord**:
 
 ---
 
