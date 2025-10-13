@@ -13,6 +13,7 @@ packages = [{include = "workshop_mcp", from = "src"}]
 [tool.poetry.dependencies]
 python = ">=3.10,<4.0"
 mcp = "^1.0.0"
+fastmcp = "^0.2.0"
 aiofiles = "^23.2.0"
 
 [tool.poetry.group.dev.dependencies]
