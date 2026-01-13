@@ -54,17 +54,17 @@ class WorkshopMCPServer:
         logger.info("Starting Workshop MCP Server (from scratch)")
         stdin = sys.stdin.buffer
         stdout = sys.stdout.buffer
-
-        while True:
-            try:
+        try:
+            while True:
                 request = self._read_message(stdin)
                 if request is None:
                     break
-
                 response = self._handle_request(request)
                 if response is not None:
                     self._write_message(stdout, response)
-            except JsonRpcError as exc:
+        finally:
+            self.loop.close()
+            logger.info("Server stopped and event loop closed")
                 response = self._error_response(None, exc)
                 self._write_message(stdout, response)
 
