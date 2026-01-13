@@ -18,7 +18,7 @@ The project follows a standard Python package structure with Poetry dependency m
 poetry install
 
 # Verify setup
-python3.12 verification.py
+poetry run python verification.py
 
 # Start the MCP server
 poetry run workshop-mcp-server
