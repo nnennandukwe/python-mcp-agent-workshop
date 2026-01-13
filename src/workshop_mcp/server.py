@@ -56,12 +56,16 @@ class WorkshopMCPServer:
         stdout = sys.stdout.buffer
 
         while True:
-            request = self._read_message(stdin)
-            if request is None:
-                break
+            try:
+                request = self._read_message(stdin)
+                if request is None:
+                    break
 
-            response = self._handle_request(request)
-            if response is not None:
+                response = self._handle_request(request)
+                if response is not None:
+                    self._write_message(stdout, response)
+            except JsonRpcError as exc:
+                response = self._error_response(None, exc)
                 self._write_message(stdout, response)
 
         logger.info("Server stopped")
