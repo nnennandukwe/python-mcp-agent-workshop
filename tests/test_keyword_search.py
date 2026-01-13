@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any, Dict
 
 import pytest
+import pytest_asyncio
 
 from workshop_mcp.keyword_search import KeywordSearchTool
 
@@ -19,12 +20,12 @@ from workshop_mcp.keyword_search import KeywordSearchTool
 class TestKeywordSearchTool:
     """Test suite for KeywordSearchTool functionality."""
 
-    @pytest.fixture
+    @pytest_asyncio.fixture
     async def search_tool(self) -> KeywordSearchTool:
         """Create a KeywordSearchTool instance for testing."""
         return KeywordSearchTool()
 
-    @pytest.fixture
+    @pytest_asyncio.fixture
     async def temp_test_directory(self) -> Path:
         """Create a temporary directory with test files."""
         with tempfile.TemporaryDirectory() as temp_dir:
