@@ -273,8 +273,14 @@ class WorkshopMCPServer:
                 JsonRpcError(
                     -32603,
                     "Internal error",
-                    {
-                        "tool": "keyword_search",
+                return self._success_response(request_id, payload)
+            except (ValueError, FileNotFoundError) as exc:
+                # Parameter or resource error
+                return self._error_response(
+                    request_id,
+                    JsonRpcError(-32602, str(exc)),
+                )
+            except Exception as exc:
                         "type": type(exc).__name__,
                         "message": str(exc),
                     },
