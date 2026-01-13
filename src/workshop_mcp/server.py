@@ -1,28 +1,17 @@
 """
-MCP Server for Workshop Keyword Search Tool
+MCP Server for Workshop Keyword Search Tool.
 
-This module implements a Model Context Protocol (MCP) server that exposes
-the keyword search functionality as a tool for AI agents.
+This module implements MCP over stdio without the official MCP SDK.
+It handles JSON-RPC 2.0 parsing, Content-Length framing, and dispatches
+requests to the keyword search tool.
 """
 
 import asyncio
 import json
 import logging
 import sys
-from typing import Any, Dict, List, Sequence
-
-from mcp.server import Server
-from mcp.server.lowlevel import NotificationOptions
-from mcp.server.models import InitializationOptions
-from mcp.server.stdio import stdio_server
-from mcp.types import (
-    CallToolRequest,
-    CallToolResult,
-    ListToolsRequest,
-    ListToolsResult,
-    TextContent,
-    Tool,
-)
+from dataclasses import dataclass
+from typing import Any, Dict, Optional
 
 from .keyword_search import KeywordSearchTool
 
@@ -35,6 +24,19 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
+JSONRPC_VERSION = "2.0"
+DEFAULT_PROTOCOL_VERSION = "2024-11-05"
+
+
+@dataclass
+class JsonRpcError(Exception):
+    code: int
+    message: str
+    data: Optional[Dict[str, Any]] = None
+
+    def __str__(self) -> str:
+        return self.message
+
 
 class WorkshopMCPServer:
     """
@@ -46,31 +48,149 @@ class WorkshopMCPServer:
 
     def __init__(self) -> None:
         """Initialize the MCP server with keyword search tool."""
-        self.server = Server("workshop-mcp-server")
         self.keyword_search_tool = KeywordSearchTool()
-        self._setup_handlers()
+        self.loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(self.loop)
 
-    def _setup_handlers(self) -> None:
-        """Set up MCP protocol handlers."""
+    def serve(self) -> None:
+        """Run the server loop reading JSON-RPC messages from stdin."""
+        logger.info("Starting Workshop MCP Server (from scratch)")
+        stdin = sys.stdin.buffer
+        stdout = sys.stdout.buffer
 
-        @self.server.list_tools()
-        async def handle_list_tools() -> List[Tool]:
-            """
-            Handle list_tools request - return available tools with their schemas.
+        try:
+            while True:
+                try:
+                    request = self._read_message(stdin)
+                    if request is None:
+                        break
 
-            Returns:
-                List of available tools with input schemas
-            """
-            return [
-                Tool(
-                    name="keyword_search",
-                    description=(
+                    response = self._handle_request(request)
+                    if response is not None:
+                        self._write_message(stdout, response)
+                except JsonRpcError as err:
+                    # Best-effort: framing/parse errors before we have a request id
+                    self._write_message(stdout, self._error_response(None, err))
+                except Exception as exc:
+                    logger.exception("Server loop error")
+                    self._write_message(
+                        stdout,
+                        self._error_response(
+                            None,
+                            JsonRpcError(-32603, "Internal error", {"details": str(exc)}),
+                        ),
+                    )
+        finally:
+            self.loop.close()
+            logger.info("Server stopped and event loop closed")
+
+    def _read_message(self, stdin: Any) -> Optional[Dict[str, Any]]:
+        headers: Dict[str, str] = {}
+        while True:
+            line = stdin.readline()
+            if line == b"":
+                return None
+            if line in (b"\n", b"\r\n"):
+                break
+            decoded = line.decode("utf-8", errors="replace").strip()
+            if not decoded:
+                break
+            if ":" not in decoded:
+                continue
+            key, value = decoded.split(":", 1)
+            headers[key.strip().lower()] = value.strip()
+
+        content_length_value = headers.get("content-length")
+        if content_length_value is None:
+            raise JsonRpcError(-32600, "Missing Content-Length header")
+
+        try:
+            content_length = int(content_length_value)
+        except ValueError:
+            raise JsonRpcError(-32600, "Invalid Content-Length header")
+
+        body = stdin.read(content_length)
+        if len(body) != content_length:
+            return None
+
+        try:
+            return json.loads(body.decode("utf-8"))
+        except json.JSONDecodeError as exc:
+            raise JsonRpcError(-32700, "Parse error", {"details": str(exc)})
+
+    def _write_message(self, stdout: Any, message: Dict[str, Any]) -> None:
+        data = json.dumps(message, ensure_ascii=False)
+        payload = data.encode("utf-8")
+        header = f"Content-Length: {len(payload)}\r\n\r\n".encode("utf-8")
+        stdout.write(header)
+        stdout.write(payload)
+        stdout.flush()
+
+    def _handle_request(self, request: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        if not isinstance(request, dict):
+            return self._error_response(None, JsonRpcError(-32600, "Invalid Request"))
+
+        if "error" in request and request.get("id") is None:
+            return request
+
+        jsonrpc = request.get("jsonrpc")
+        method = request.get("method")
+
+        # Notifications omit the "id" member entirely.
+        if "id" not in request:
+            return None
+
+        request_id = request.get("id")
+
+        # JSON-RPC 2.0: id MUST be string|number|null.
+        if request_id is not None and not isinstance(request_id, (str, int)):
+            return self._error_response(None, JsonRpcError(-32600, "Invalid Request"))
+
+        if jsonrpc != JSONRPC_VERSION or not isinstance(method, str):
+            return self._error_response(request_id, JsonRpcError(-32600, "Invalid Request"))
+
+        if method == "initialize":
+            return self._handle_initialize(request_id, request.get("params"))
+        if method == "list_tools":
+            return self._handle_list_tools(request_id)
+        if method == "call_tool":
+            return self._handle_call_tool(request_id, request.get("params"))
+
+        return self._error_response(
+            request_id,
+            JsonRpcError(-32601, f"Method not found: {method}"),
+        )
+
+    def _handle_initialize(
+        self, request_id: Any, params: Optional[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        if params is not None and not isinstance(params, dict):
+            return self._error_response(
+                request_id,
+                JsonRpcError(-32602, "Invalid params", {"expected": "object"}),
+            )
+
+        params = params or {}
+        protocol_version = params.get("protocolVersion", DEFAULT_PROTOCOL_VERSION)
+        result = {
+            "protocolVersion": protocol_version,
+            "serverInfo": {"name": "workshop-mcp-server", "version": "0.1.0"},
+            "capabilities": {"tools": {}},
+        }
+        return self._success_response(request_id, result)
+
+    def _handle_list_tools(self, request_id: Any) -> Dict[str, Any]:
+        result = {
+            "tools": [
+                {
+                    "name": "keyword_search",
+                    "description": (
                         "Search for keyword occurrences across directory trees. "
                         "Supports multiple text file formats (.py, .java, .js, .ts, "
                         ".html, .css, .json, .xml, .md, .txt, .yml, .yaml, etc.) "
                         "and provides detailed statistics about matches."
                     ),
-                    inputSchema={
+                    "inputSchema": {
                         "type": "object",
                         "properties": {
                             "keyword": {
@@ -90,124 +210,100 @@ class WorkshopMCPServer:
                         },
                         "required": ["keyword", "root_paths"],
                     },
-                )
-            ]
-
-        @self.server.call_tool()
-        async def handle_call_tool(
-            name: str, arguments: Dict[str, Any]
-        ) -> List[TextContent]:
-            """
-            Handle call_tool request - execute the requested tool.
-
-            Args:
-                name: Name of the tool to execute
-                arguments: Tool arguments
-
-            Returns:
-                List of text content with tool results
-
-            Raises:
-                ValueError: If tool name is unknown or arguments are invalid
-            """
-            if name != "keyword_search":
-                raise ValueError(f"Unknown tool: {name}")
-
-            try:
-                # Validate required arguments
-                if "keyword" not in arguments:
-                    raise ValueError("Missing required argument: keyword")
-
-                if "root_paths" not in arguments:
-                    raise ValueError("Missing required argument: root_paths")
-
-                keyword = arguments["keyword"]
-                root_paths = arguments["root_paths"]
-
-                # Validate argument types
-                if not isinstance(keyword, str):
-                    raise ValueError("keyword must be a string")
-
-                if not isinstance(root_paths, list):
-                    raise ValueError("root_paths must be a list")
-
-                if not all(isinstance(path, str) for path in root_paths):
-                    raise ValueError("All root_paths must be strings")
-
-                # Execute keyword search
-                logger.info(
-                    f"Executing keyword search for '{keyword}' in {len(root_paths)} paths"
-                )
-
-                result = await self.keyword_search_tool.execute(keyword, root_paths)
-
-                # Format result as JSON
-                result_json = json.dumps(result, indent=2, ensure_ascii=False)
-
-                logger.info(
-                    f"Search completed successfully: "
-                    f"{result['summary']['total_files_searched']} files searched, "
-                    f"{result['summary']['total_occurrences']} occurrences found"
-                )
-
-                return [TextContent(type="text", text=result_json)]
-
-            except Exception as e:
-                error_msg = f"Error executing keyword_search: {str(e)}"
-                logger.error(error_msg)
-
-                # Return error as structured JSON
-                error_result = {
-                    "error": {
-                        "type": type(e).__name__,
-                        "message": str(e),
-                        "tool": "keyword_search",
-                        "arguments": arguments,
-                    }
                 }
+            ]
+        }
+        return self._success_response(request_id, result)
 
-                return [
-                    TextContent(type="text", text=json.dumps(error_result, indent=2))
-                ]
+    def _handle_call_tool(
+        self, request_id: Any, params: Optional[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        if not isinstance(params, dict):
+            return self._error_response(
+                request_id,
+                JsonRpcError(-32602, "Invalid params", {"expected": "object"}),
+            )
 
-    async def run(self) -> None:
-        """
-        Run the MCP server with stdio transport.
+        name = params.get("name")
+        arguments = params.get("arguments", {})
 
-        This method starts the server and handles the MCP protocol communication
-        over stdin/stdout.
-        """
-        logger.info("Starting Workshop MCP Server")
+        if name != "keyword_search":
+            return self._error_response(
+                request_id,
+                JsonRpcError(-32602, "Unknown tool", {"tool": name}),
+            )
+
+        if not isinstance(arguments, dict):
+            return self._error_response(
+                request_id,
+                JsonRpcError(-32602, "Invalid params", {"expected": "object"}),
+            )
 
         try:
-            async with stdio_server() as (read_stream, write_stream):
-                await self.server.run(
-                    read_stream,
-                    write_stream,
-                    InitializationOptions(
-                        server_name="workshop-mcp-server",
-                        server_version="0.1.0",
-                        capabilities=self.server.get_capabilities(
-                            notification_options=NotificationOptions(),
-                            experimental_capabilities={},
-                        ),
-                    ),
-                )
-        except KeyboardInterrupt:
-            logger.info("Server shutdown requested")
-        except Exception as e:
-            logger.error(f"Server error: {e}")
-            raise
+            keyword = arguments["keyword"]
+            root_paths = arguments["root_paths"]
+        except KeyError as exc:
+            return self._error_response(
+                request_id,
+                JsonRpcError(-32602, "Missing required argument", {"missing": str(exc)}),
+            )
 
+        if not isinstance(keyword, str):
+            return self._error_response(
+                request_id,
+                JsonRpcError(-32602, "keyword must be a string"),
+            )
+        if not isinstance(root_paths, list) or not all(
+            isinstance(path, str) for path in root_paths
+        ):
+            return self._error_response(
+                request_id,
+                JsonRpcError(-32602, "root_paths must be a list of strings"),
+            )
 
-async def main() -> None:
-    """
-    Main entry point for the MCP server.
+        try:
+            logger.info(
+                "Executing keyword search for '%s' in %d paths",
+                keyword,
+                len(root_paths),
+            )
+            result = self.loop.run_until_complete(
+                self.keyword_search_tool.execute(keyword, root_paths)
+            )
+            result_json = json.dumps(result, indent=2, ensure_ascii=False)
+            payload = {
+                "content": [{"type": "text", "text": result_json}],
+            }
+            return self._success_response(request_id, payload)
+        except (ValueError, FileNotFoundError) as exc:
+            # Parameter or resource error
+            return self._error_response(
+                request_id,
+                JsonRpcError(-32602, str(exc)),
+            )
+        except Exception as exc:
+            logger.exception("Error executing keyword_search")
+            return self._error_response(
+                request_id,
+                JsonRpcError(
+                    -32603,
+                    "Internal error",
+                    {"type": type(exc).__name__, "message": str(exc)},
+                ),
+            )
 
-    Creates and runs the Workshop MCP Server instance.
-    """
-    server = WorkshopMCPServer()
-    await server.run()
+    def _success_response(self, request_id: Any, result: Dict[str, Any]) -> Dict[str, Any]:
+        return {"jsonrpc": JSONRPC_VERSION, "id": request_id, "result": result}
+
+    def _error_response(self, request_id: Any, error: JsonRpcError) -> Dict[str, Any]:
+        payload: Dict[str, Any] = {
+            "jsonrpc": JSONRPC_VERSION,
+            "id": request_id,
+            "error": {"code": error.code, "message": error.message},
+        }
+        if error.data is not None:
+            payload["error"]["data"] = error.data
+        return payload
 
 
 def sync_main() -> None:
@@ -216,13 +312,14 @@ def sync_main() -> None:
 
     This function is used as the script entry point in pyproject.toml.
     """
+    server = WorkshopMCPServer()
     try:
-        asyncio.run(main())
+        server.serve()
     except KeyboardInterrupt:
         logger.info("Server stopped by user")
         sys.exit(0)
-    except Exception as e:
-        logger.error(f"Fatal error: {e}")
+    except Exception as exc:
+        logger.error("Fatal error: %s", exc)
         sys.exit(1)
 
 
