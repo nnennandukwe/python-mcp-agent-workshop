@@ -108,7 +108,7 @@ class KeywordSearchTool:
         for search_result in search_results:
             if isinstance(search_result, asyncio.CancelledError):
                 raise search_result
-            if isinstance(search_result, Exception):
+            self.logger.error("Search task failed: %s", search_result, exc_info=True)
                 error_message = f"Search task for a root path failed: {search_result}"
                 if "search_errors" not in result:
                     result["search_errors"] = []
