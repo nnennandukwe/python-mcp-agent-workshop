@@ -84,36 +84,12 @@ class WorkshopMCPServer:
 
         content_length_value = headers.get("content-length")
         if content_length_value is None:
-            return {
-                "jsonrpc": JSONRPC_VERSION,
-                "id": None,
-                "error": {
-                    "code": -32600,
-                    "message": "Missing Content-Length header",
-                },
-            }
+            raise JsonRpcError(-32600, "Missing Content-Length header")
 
-        MAX_CONTENT_LENGTH = 1_048_576  # 1 MB
         try:
             content_length = int(content_length_value)
         except ValueError:
-            return {
-                "jsonrpc": JSONRPC_VERSION,
-                "id": None,
-                "error": {
-                    "code": -32600,
-                    "message": "Invalid Content-Length header",
-                },
-            }
-        if content_length > MAX_CONTENT_LENGTH:
-            return {
-                "jsonrpc": JSONRPC_VERSION,
-                "id": None,
-                "error": {
-                    "code": -32600,
-                    "message": "Content-Length too large",
-                },
-            }
+            raise JsonRpcError(-32600, "Invalid Content-Length header")
 
         body = stdin.read(content_length)
         if len(body) != content_length:
@@ -121,6 +97,8 @@ class WorkshopMCPServer:
 
         try:
             return json.loads(body.decode("utf-8"))
+        except json.JSONDecodeError as exc:
+            raise JsonRpcError(-32700, "Parse error", {"details": str(exc)})
         except json.JSONDecodeError as exc:
             return {
                 "jsonrpc": JSONRPC_VERSION,
