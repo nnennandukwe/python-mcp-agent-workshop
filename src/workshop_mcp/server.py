@@ -77,7 +77,9 @@ class WorkshopMCPServer:
                         stdout,
                         self._error_response(
                             None,
-                            JsonRpcError(-32603, "Internal error", {"details": str(exc)}),
+                            JsonRpcError(
+                                -32603, "Internal error", {"details": str(exc)}
+                            ),
                         ),
                     )
         finally:
@@ -147,7 +149,9 @@ class WorkshopMCPServer:
             return self._error_response(None, JsonRpcError(-32600, "Invalid Request"))
 
         if jsonrpc != JSONRPC_VERSION or not isinstance(method, str):
-            return self._error_response(request_id, JsonRpcError(-32600, "Invalid Request"))
+            return self._error_response(
+                request_id, JsonRpcError(-32600, "Invalid Request")
+            )
 
         if method == "initialize":
             return self._handle_initialize(request_id, request.get("params"))
@@ -245,7 +249,9 @@ class WorkshopMCPServer:
         except KeyError as exc:
             return self._error_response(
                 request_id,
-                JsonRpcError(-32602, "Missing required argument", {"missing": str(exc)}),
+                JsonRpcError(
+                    -32602, "Missing required argument", {"missing": str(exc)}
+                ),
             )
 
         if not isinstance(keyword, str):
@@ -292,7 +298,9 @@ class WorkshopMCPServer:
                 ),
             )
 
-    def _success_response(self, request_id: Any, result: Dict[str, Any]) -> Dict[str, Any]:
+    def _success_response(
+        self, request_id: Any, result: Dict[str, Any]
+    ) -> Dict[str, Any]:
         return {"jsonrpc": JSONRPC_VERSION, "id": request_id, "result": result}
 
     def _error_response(self, request_id: Any, error: JsonRpcError) -> Dict[str, Any]:

@@ -75,9 +75,7 @@ def test_initialize_response(server: WorkshopMCPServer) -> None:
 
 
 def test_list_tools_response(server: WorkshopMCPServer) -> None:
-    message = _encode_message(
-        {"jsonrpc": "2.0", "id": 2, "method": "list_tools"}
-    )
+    message = _encode_message({"jsonrpc": "2.0", "id": 2, "method": "list_tools"})
     response = _run_server_harness(server, message)
 
     assert response is not None
@@ -118,9 +116,7 @@ def test_call_tool_response(server: WorkshopMCPServer, tmp_path) -> None:
 
 
 def test_invalid_method_returns_error(server: WorkshopMCPServer) -> None:
-    message = _encode_message(
-        {"jsonrpc": "2.0", "id": 3, "method": "unknown_method"}
-    )
+    message = _encode_message({"jsonrpc": "2.0", "id": 3, "method": "unknown_method"})
     response = _run_server_harness(server, message)
 
     assert response is not None
