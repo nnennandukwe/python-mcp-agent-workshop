@@ -29,10 +29,13 @@ DEFAULT_PROTOCOL_VERSION = "2024-11-05"
 
 
 @dataclass
-class JsonRpcError:
+class JsonRpcError(Exception):
     code: int
     message: str
     data: Optional[Dict[str, Any]] = None
+
+    def __str__(self) -> str:
+        return self.message
 
 
 class WorkshopMCPServer:
@@ -54,21 +57,32 @@ class WorkshopMCPServer:
         logger.info("Starting Workshop MCP Server (from scratch)")
         stdin = sys.stdin.buffer
         stdout = sys.stdout.buffer
+
         try:
             while True:
-                request = self._read_message(stdin)
-                if request is None:
-                    break
-                response = self._handle_request(request)
-                if response is not None:
-                    self._write_message(stdout, response)
+                try:
+                    request = self._read_message(stdin)
+                    if request is None:
+                        break
+
+                    response = self._handle_request(request)
+                    if response is not None:
+                        self._write_message(stdout, response)
+                except JsonRpcError as err:
+                    # Best-effort: framing/parse errors before we have a request id
+                    self._write_message(stdout, self._error_response(None, err))
+                except Exception as exc:
+                    logger.exception("Server loop error")
+                    self._write_message(
+                        stdout,
+                        self._error_response(
+                            None,
+                            JsonRpcError(-32603, "Internal error", {"details": str(exc)}),
+                        ),
+                    )
         finally:
             self.loop.close()
             logger.info("Server stopped and event loop closed")
-                response = self._error_response(None, exc)
-                self._write_message(stdout, response)
-
-        logger.info("Server stopped")
 
     def _read_message(self, stdin: Any) -> Optional[Dict[str, Any]]:
         headers: Dict[str, str] = {}
@@ -103,16 +117,6 @@ class WorkshopMCPServer:
             return json.loads(body.decode("utf-8"))
         except json.JSONDecodeError as exc:
             raise JsonRpcError(-32700, "Parse error", {"details": str(exc)})
-        except json.JSONDecodeError as exc:
-            return {
-                "jsonrpc": JSONRPC_VERSION,
-                "id": None,
-                "error": {
-                    "code": -32700,
-                    "message": "Parse error",
-                    "data": {"details": str(exc)},
-                },
-            }
 
     def _write_message(self, stdout: Any, message: Dict[str, Any]) -> None:
         data = json.dumps(message, ensure_ascii=False)
@@ -131,13 +135,19 @@ class WorkshopMCPServer:
 
         jsonrpc = request.get("jsonrpc")
         method = request.get("method")
+
+        # Notifications omit the "id" member entirely.
+        if "id" not in request:
+            return None
+
         request_id = request.get("id")
+
+        # JSON-RPC 2.0: id MUST be string|number|null.
+        if request_id is not None and not isinstance(request_id, (str, int)):
+            return self._error_response(None, JsonRpcError(-32600, "Invalid Request"))
 
         if jsonrpc != JSONRPC_VERSION or not isinstance(method, str):
             return self._error_response(request_id, JsonRpcError(-32600, "Invalid Request"))
-
-        if request_id is None:
-            return None
 
         if method == "initialize":
             return self._handle_initialize(request_id, request.get("params"))
@@ -263,9 +273,14 @@ class WorkshopMCPServer:
             result_json = json.dumps(result, indent=2, ensure_ascii=False)
             payload = {
                 "content": [{"type": "text", "text": result_json}],
-                "isError": False,
             }
             return self._success_response(request_id, payload)
+        except (ValueError, FileNotFoundError) as exc:
+            # Parameter or resource error
+            return self._error_response(
+                request_id,
+                JsonRpcError(-32602, str(exc)),
+            )
         except Exception as exc:
             logger.exception("Error executing keyword_search")
             return self._error_response(
@@ -273,17 +288,7 @@ class WorkshopMCPServer:
                 JsonRpcError(
                     -32603,
                     "Internal error",
-                return self._success_response(request_id, payload)
-            except (ValueError, FileNotFoundError) as exc:
-                # Parameter or resource error
-                return self._error_response(
-                    request_id,
-                    JsonRpcError(-32602, str(exc)),
-                )
-            except Exception as exc:
-                        "type": type(exc).__name__,
-                        "message": str(exc),
-                    },
+                    {"type": type(exc).__name__, "message": str(exc)},
                 ),
             )
 
