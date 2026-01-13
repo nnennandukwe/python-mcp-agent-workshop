@@ -1,0 +1,80 @@
+#!/usr/bin/env sh
+# Pre-commit hook: format staged files and restage them.
+
+set -euo pipefail 2>/dev/null || set -eu
+
+echo "pre-commit: collecting staged files..."
+
+staged_files=$(git diff --cached --name-only --diff-filter=ACM)
+
+# Exit early if nothing is staged.
+if [ -z "$staged_files" ]; then
+  echo "pre-commit: no staged files to check."
+  exit 0
+fi
+
+# Create temporary files to store NUL-delimited file lists.
+py_list=$(mktemp)
+js_list=$(mktemp)
+
+cleanup() {
+  rm -f "$py_list" "$js_list"
+}
+trap cleanup EXIT
+
+# Split staged files by extension.
+while IFS= read -r file; do
+  case "$file" in
+    *.py)
+      printf '%s\0' "$file" >>"$py_list"
+      ;;
+    *.js|*.ts)
+      printf '%s\0' "$file" >>"$js_list"
+      ;;
+  esac
+done <<STAGED_FILES
+$staged_files
+STAGED_FILES
+
+# Exit successfully if no matching files are staged.
+if [ ! -s "$py_list" ] && [ ! -s "$js_list" ]; then
+  echo "pre-commit: no staged .py/.js/.ts files to format."
+  exit 0
+fi
+
+# Format Python files with black.
+if [ -s "$py_list" ]; then
+  echo "pre-commit: running black on staged Python files..."
+  if ! xargs -0 black <"$py_list"; then
+    echo "pre-commit: black failed."
+    exit 1
+  fi
+fi
+
+# Format JS/TS files with prettier.
+if [ -s "$js_list" ]; then
+  echo "pre-commit: running prettier on staged JS/TS files..."
+  if ! xargs -0 prettier --write <"$js_list"; then
+    echo "pre-commit: prettier failed."
+    exit 1
+  fi
+fi
+
+# Re-add any modified files to the index.
+echo "pre-commit: restaging formatted files..."
+if [ -s "$py_list" ]; then
+  xargs -0 git add <"$py_list"
+fi
+if [ -s "$js_list" ]; then
+  xargs -0 git add <"$js_list"
+fi
+
+# Check whether there are still staged changes.
+if git diff --cached --quiet; then
+  echo "pre-commit: no staged changes remain after formatting."
+  echo "pre-commit: aborting commit so you can re-run it."
+  exit 1
+fi
+
+echo "pre-commit: formatting complete; proceeding with commit."
+exit 0
