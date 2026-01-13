@@ -1,6 +1,9 @@
 # Python MCP Agent Workshop
 
-A comprehensive workshop for building AI agents using the Model Context Protocol (MCP) in Python. This project demonstrates how to create MCP servers, implement custom tools, and configure intelligent agents for code analysis.
+A workshop for building AI agents using the Model Context Protocol (MCP) in Python.
+This project walks through implementing MCP server fundamentals (JSON-RPC framing,
+tool discovery, and tool execution) and ships a fully working keyword search tool
+backed by async file I/O.
 
 ## Link to Presentation Slides
 
@@ -11,16 +14,15 @@ A comprehensive workshop for building AI agents using the Model Context Protocol
 
 
 ```bash
-
 # Install the repository
 git clone <repository-url>
-cd agent-mcp-workshop-python
+cd python-mcp-agent-workshop
 
 # Install dependencies
 poetry install
 
 # Verify setup
-python3.12 verification.py
+python verification.py
 
 # Start the MCP server
 poetry run workshop-mcp-server
@@ -28,7 +30,7 @@ poetry run workshop-mcp-server
 # Run tests
 poetry run pytest
 
-# Use the agent (requires Qodo)
+# Use the agent (optional, requires Qodo)
 qodo keyword_analysis --set keyword="{KEYWORD_HERE}"
 ```
 
@@ -57,21 +59,20 @@ Before starting the workshop, ensure you have the following installed:
    - Or via pip: `pip install poetry`
    - Verify: `poetry --version`
 
-3. **Qodo Command** (for agent execution)
-   - Install by running command `npm install -g @qodo/command`
-   - Log in with the command `qodo login`
-   - Verify: `qodo --version`
-   - Additional resources: [docs.qodo.ai/qodo-documentation/qodo-command](https://docs.qodo.ai/qodo-documentation/qodo-command)
-
 ### Optional Tools
 
 - **Git** for version control
 - **VS Code** or your preferred IDE
 - **Docker** (for containerized deployment)
+- **Qodo Command** (optional, for agent execution)
+  - Install: `npm install -g @qodo/command`
+  - Log in: `qodo login`
+  - Verify: `qodo --version`
+  - Docs: [docs.qodo.ai/qodo-documentation/qodo-command](https://docs.qodo.ai/qodo-documentation/qodo-command)
 
 ## 🏗️ Architecture Overview
 
-This workshop demonstrates a complete MCP ecosystem:
+This workshop demonstrates a complete MCP ecosystem implemented from scratch:
 
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
@@ -96,9 +97,9 @@ This workshop demonstrates a complete MCP ecosystem:
 ### Components
 
 1. **MCP Server** (`src/workshop_mcp/server.py`)
-   - Implements MCP protocol
+   - Implements MCP protocol over stdio (Content-Length framing)
    - Exposes keyword search tool
-   - Handles JSON-RPC communication
+   - Handles JSON-RPC request routing
 
 2. **Keyword Search Tool** (`src/workshop_mcp/keyword_search.py`)
    - Asynchronous file system search
@@ -106,9 +107,7 @@ This workshop demonstrates a complete MCP ecosystem:
    - Statistical analysis and reporting
 
 3. **AI Agent** (`agents/keyword_analysis.toml`)
-   - Intelligent keyword analysis
-   - Pattern recognition
-   - Refactoring recommendations
+   - Keyword analysis prompt and configuration for Qodo Command
 
 ## 🛠️ Usage Examples
 
@@ -164,7 +163,7 @@ poetry run pytest -v --tb=long
 1. **Clone and Install**
    ```bash
    git clone <repository-url>
-   cd agent-mcp-workshop-python
+   cd python-mcp-agent-workshop
    poetry install
    ```
 
@@ -190,8 +189,6 @@ poetry run isort src/ tests/
 # Type checking
 poetry run mypy src/
 
-# Linting
-poetry run flake8 src/ tests/
 ```
 
 ### Running in Development Mode
@@ -210,11 +207,13 @@ poetry run pytest -v -s
 ## 📁 Project Structure
 
 ```
-agent-mcp-workshop-python/
+python-mcp-agent-workshop/
 ├── pyproject.toml              # Poetry configuration
 ├── README.md                   # This file
 ├── verification.py             # Setup verification script
-├── .gitignore                  # Git ignore rules
+├── agent.toml                  # Top-level agent configuration
+├── mcp.json                    # MCP configuration metadata
+├── demo.py                     # Demo script
 │
 ├── src/workshop_mcp/           # Main package
 │   ├── __init__.py             # Package initialization
@@ -231,23 +230,12 @@ agent-mcp-workshop-python/
 
 ## 🧪 Testing Strategy
 
-The project includes comprehensive tests covering:
+The project includes tests covering:
 
 ### Unit Tests
 - **Basic functionality**: Keyword search across files
-- **Edge cases**: Empty files, binary files, permission errors
-- **Concurrency**: Async operations and performance
-- **Error handling**: Invalid inputs and system errors
-
-### Integration Tests
-- **MCP protocol**: Server startup and tool execution
-- **File system**: Real directory traversal
-- **Agent configuration**: TOML parsing and validation
-
-### Performance Tests
-- **Large codebases**: Scalability testing
-- **Concurrent searches**: Multi-directory operations
-- **Memory usage**: Resource consumption monitoring
+- **Edge cases**: Empty files, binary files, and invalid input handling
+- **Concurrency**: Async operations and multi-directory searches
 
 ## 🚨 Troubleshooting
 
@@ -265,19 +253,13 @@ The project includes comprehensive tests covering:
    Solution: Install Poetry from python-poetry.org
    ```
 
-3. **MCP Import Error**
-   ```
-   Error: No module named 'mcp'
-   Solution: Run 'poetry install' to install dependencies
-   ```
-
-4. **Permission Denied**
+3. **Permission Denied**
    ```
    Error: Permission denied accessing files
    Solution: Check file permissions and user access
    ```
 
-5. **Agent Configuration Error**
+4. **Agent Configuration Error**
    ```
    Error: Invalid TOML configuration
    Solution: Validate TOML syntax in agents/keyword_analysis.toml
@@ -294,10 +276,13 @@ poetry run workshop-mcp-server
 
 ### Verification Script
 
-Run the comprehensive verification:
+Run the comprehensive verification (use `python3.12` if it is installed; otherwise
+use your default `python` that meets the 3.11+ requirement):
 
 ```bash
 python3.12 verification.py
+# or
+python verification.py
 ```
 
 This checks:
@@ -314,7 +299,6 @@ This checks:
 
 ### MCP Protocol
 - [MCP Specification](https://spec.modelcontextprotocol.io/)
-- [MCP Python SDK](https://github.com/modelcontextprotocol/python-sdk)
 - [MCP Examples](https://github.com/modelcontextprotocol/servers)
 
 ### Python Async Programming
@@ -355,10 +339,8 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## 📞 Support
 
-- **Issues**: [GitHub Issues](https://github.com/workshop/mcp-python-agent/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/workshop/mcp-python-agent/discussions)
-- **Email**: nnenna.n@qodo.ai
-- **Discord**:
+- **Issues**: Use your fork's issue tracker
+- **Discussions**: Use your fork's discussions board
 
 ---
 
