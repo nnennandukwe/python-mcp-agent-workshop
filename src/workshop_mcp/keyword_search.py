@@ -104,7 +104,16 @@ class KeywordSearchTool:
             search_tasks.append(self._search_directory(root_path, keyword, result))
 
         # Execute all searches concurrently
-        await asyncio.gather(*search_tasks, return_exceptions=True)
+        search_results = await asyncio.gather(*search_tasks, return_exceptions=True)
+        for search_result in search_results:
+            if isinstance(search_result, asyncio.CancelledError):
+                raise search_result
+            self.logger.error("Search task failed: %s", search_result, exc_info=True)
+                error_message = f"Search task for a root path failed: {search_result}"
+                if "search_errors" not in result:
+                    result["search_errors"] = []
+                result["search_errors"].append(error_message)
+                self.logger.error(error_message)
 
         # Calculate final summary statistics
         self._calculate_summary(result)
