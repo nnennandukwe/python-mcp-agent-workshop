@@ -108,12 +108,17 @@ class KeywordSearchTool:
         for search_result in search_results:
             if isinstance(search_result, asyncio.CancelledError):
                 raise search_result
-            self.logger.error("Search task failed: %s", search_result, exc_info=True)
-                error_message = f"Search task for a root path failed: {search_result}"
-                if "search_errors" not in result:
-                    result["search_errors"] = []
-                result["search_errors"].append(error_message)
-                self.logger.error(error_message)
+            if isinstance(search_result, Exception):
+                result["summary"]["files_with_errors"] += 1
+                self.logger.error(
+                    "Search task for a root path failed: %s",
+                    search_result,
+                    exc_info=True,
+                )
+
+                result.setdefault("search_errors", []).append(
+                    f"Search task for a root path failed: {search_result}"
+                )
 
         # Calculate final summary statistics
         self._calculate_summary(result)
@@ -183,9 +188,16 @@ class KeywordSearchTool:
                 occurrences = content.count(keyword)
 
                 # Update result
+                try:
+                    size_bytes = file_path.stat().st_size
+                except FileNotFoundError:
+                    self.logger.warning("File disappeared before stat(): %s", file_path)
+                    result["summary"]["files_with_errors"] += 1
+                    return
+
                 result["files"][file_path_str] = {
                     "occurrences": occurrences,
-                    "size_bytes": file_path.stat().st_size,
+                    "size_bytes": size_bytes,
                     "extension": file_path.suffix.lower(),
                 }
 
