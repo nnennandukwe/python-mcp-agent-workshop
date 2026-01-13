@@ -32,6 +32,16 @@ poetry run pytest
 qodo keyword_analysis --set keyword="{KEYWORD_HERE}"
 ```
 
+## 🧭 Learning Path (From-Scratch MCP Server)
+
+Start with the protocol fundamentals and build up the server step by step:
+
+1. [00 - Introduction](00-introduction.md)
+2. [01 - Transport: Framing MCP Messages Over stdio](01-transport.md)
+3. [02 - JSON-RPC 2.0: Validating and Routing Requests](02-jsonrpc.md)
+4. [03 - Initialize: Capability Handshake](03-initialize.md)
+5. [04 - Tools: Advertising and Invoking Capabilities](04-tools.md)
+
 ## 📋 Prerequisites
 
 Before starting the workshop, ensure you have the following installed:
