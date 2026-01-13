@@ -60,31 +60,45 @@ class WorkshopMCPServer:
 
         try:
             while True:
-                try:
-                    request = self._read_message(stdin)
-                    if request is None:
-                        break
-
-                    response = self._handle_request(request)
-                    if response is not None:
-                        self._write_message(stdout, response)
-                except JsonRpcError as err:
-                    # Best-effort: framing/parse errors before we have a request id
-                    self._write_message(stdout, self._error_response(None, err))
-                except Exception as exc:
-                    logger.exception("Server loop error")
-                    self._write_message(
-                        stdout,
-                        self._error_response(
-                            None,
-                            JsonRpcError(
-                                -32603, "Internal error", {"details": str(exc)}
-                            ),
-                        ),
-                    )
+                if not self._serve_once(stdin, stdout):
+                    break
         finally:
             self.loop.close()
             logger.info("Server stopped and event loop closed")
+
+    def serve_once(self, stdin: Any, stdout: Any) -> bool:
+        """Public helper: process exactly one framed request from stdin.
+
+        Returns:
+            True if a message was processed (or an error response was written),
+            False if EOF was reached before a full message could be read.
+        """
+        return self._serve_once(stdin, stdout)
+
+    def _serve_once(self, stdin: Any, stdout: Any) -> bool:
+        try:
+            request = self._read_message(stdin)
+            if request is None:
+                return False
+
+            response = self._handle_request(request)
+            if response is not None:
+                self._write_message(stdout, response)
+            return True
+        except JsonRpcError as err:
+            # Best-effort: framing/parse errors before we have a request id
+            self._write_message(stdout, self._error_response(None, err))
+            return True
+        except Exception as exc:
+            logger.exception("Server loop error")
+            self._write_message(
+                stdout,
+                self._error_response(
+                    None,
+                    JsonRpcError(-32603, "Internal error", {"details": str(exc)}),
+                ),
+            )
+            return True
 
     def _read_message(self, stdin: Any) -> Optional[Dict[str, Any]]:
         headers: Dict[str, str] = {}

@@ -11,7 +11,7 @@ from typing import Any, Dict, Optional
 
 import pytest
 
-from workshop_mcp.server import JsonRpcError, WorkshopMCPServer
+from workshop_mcp.server import WorkshopMCPServer
 
 
 def _encode_message(payload: Dict[str, Any]) -> bytes:
@@ -20,33 +20,35 @@ def _encode_message(payload: Dict[str, Any]) -> bytes:
     return header + data
 
 
+def _decode_message(raw: bytes) -> Dict[str, Any]:
+    header_blob, body = raw.split(b"\r\n\r\n", 1)
+
+    content_length: Optional[int] = None
+    for line in header_blob.decode("utf-8", errors="replace").split("\r\n"):
+        if line.lower().startswith("content-length:"):
+            content_length = int(line.split(":", 1)[1].strip())
+            break
+
+    assert content_length is not None
+    return json.loads(body[:content_length].decode("utf-8"))
+
+
 def _run_server_harness(
     server: WorkshopMCPServer, raw_message: bytes
 ) -> Optional[Dict[str, Any]]:
     stdin = io.BytesIO(raw_message)
     stdout = io.BytesIO()
 
-    try:
-        request = server._read_message(stdin)
-        if request is None:
-            return None
-        response = server._handle_request(request)
-        if response is None:
-            return None
-        server._write_message(stdout, response)
-    except JsonRpcError as err:
-        server._write_message(stdout, server._error_response(None, err))
-    except Exception as exc:
-        server._write_message(
-            stdout,
-            server._error_response(
-                None,
-                JsonRpcError(-32603, "Internal error", {"details": str(exc)}),
-            ),
-        )
+    processed = server.serve_once(stdin, stdout)
+    if not processed:
+        return None
 
     stdout.seek(0)
-    return server._read_message(stdout)
+    output = stdout.read()
+    if not output:
+        return None
+
+    return _decode_message(output)
 
 
 @pytest.fixture
