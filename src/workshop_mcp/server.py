@@ -119,7 +119,7 @@ class WorkshopMCPServer:
             raise JsonRpcError(-32700, "Parse error", {"details": str(exc)})
 
     def _write_message(self, stdout: Any, message: Dict[str, Any]) -> None:
-        data = json.dumps(message, ensure_ascii=False) + "\n"
+        data = json.dumps(message, ensure_ascii=False)
         payload = data.encode("utf-8")
         header = f"Content-Length: {len(payload)}\r\n\r\n".encode("utf-8")
         stdout.write(header)
