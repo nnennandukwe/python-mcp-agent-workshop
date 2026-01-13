@@ -106,6 +106,8 @@ class KeywordSearchTool:
         # Execute all searches concurrently
         search_results = await asyncio.gather(*search_tasks, return_exceptions=True)
         for search_result in search_results:
+            if isinstance(search_result, asyncio.CancelledError):
+                raise search_result
             if isinstance(search_result, Exception):
                 error_message = f"Search task for a root path failed: {search_result}"
                 if "search_errors" not in result:
