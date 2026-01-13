@@ -93,6 +93,7 @@ class WorkshopMCPServer:
                 },
             }
 
+        MAX_CONTENT_LENGTH = 1_048_576  # 1 MB
         try:
             content_length = int(content_length_value)
         except ValueError:
@@ -102,6 +103,15 @@ class WorkshopMCPServer:
                 "error": {
                     "code": -32600,
                     "message": "Invalid Content-Length header",
+                },
+            }
+        if content_length > MAX_CONTENT_LENGTH:
+            return {
+                "jsonrpc": JSONRPC_VERSION,
+                "id": None,
+                "error": {
+                    "code": -32600,
+                    "message": "Content-Length too large",
                 },
             }
 
