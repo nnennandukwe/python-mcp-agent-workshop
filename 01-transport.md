@@ -26,13 +26,29 @@ Below is the smallest possible read/write loop for the transport layer. The full
 implementation lives in `src/workshop_mcp/server.py`.
 
 ```python
+import json
+import sys
+
+stdin = sys.stdin.buffer
+stdout = sys.stdout.buffer
+
 # read headers
 headers = {}
 while True:
     line = stdin.readline()
+    if line == b"":  # EOF
+        raise RuntimeError("Unexpected EOF while reading headers")
     if line in (b"\n", b"\r\n"):
         break
-    key, value = line.decode("utf-8").split(":", 1)
+
+    decoded = line.decode("utf-8", errors="replace").strip()
+    if not decoded:
+        break
+    if ":" not in decoded:
+        # Malformed header line; ignore or raise depending on strictness
+        continue
+
+    key, value = decoded.split(":", 1)
     headers[key.strip().lower()] = value.strip()
 
 content_length = int(headers["content-length"])
