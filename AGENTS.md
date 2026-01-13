@@ -6,13 +6,19 @@ The project follows a standard Python package structure with Poetry dependency m
 - `src/workshop_mcp/` - Main package containing MCP server and keyword search tool
 - `agents/` - Agent configuration files (TOML format)
 - `tests/` - Comprehensive test suite with async testing support
+- `00-*.md` - Step-by-step workshop guides for building the MCP server
 - `pyproject.toml` - Poetry configuration with dependencies and build settings
+- `verification.py` - Environment verification and health checks
+- `mcp.json` - MCP server launch configuration
 
 ## Build, Test, and Development Commands
 
 ```bash
 # Install dependencies
 poetry install
+
+# Verify setup
+python3.12 verification.py
 
 # Start the MCP server
 poetry run workshop-mcp-server
@@ -103,15 +109,23 @@ python-mcp-agent-workshop/
 │   ├── __init__.py             # Package initialization
 │   ├── server.py               # MCP server with JSON-RPC protocol
 │   └── keyword_search.py       # Async keyword search tool
+├── 00-setup.md                 # Workshop setup and environment verification
+├── 00-introduction.md          # Workshop introduction
+├── 01-transport.md             # Transport fundamentals
+├── 02-jsonrpc.md               # JSON-RPC validation and routing
+├── 03-initialize.md            # Capability handshake walkthrough
+├── 04-tools.md                 # Tool advertising and invocation
 ├── agents/                     # Agent configurations
 │   └── keyword_analysis.toml   # Intelligent analysis agent
 ├── tests/                      # Comprehensive test suite
 │   ├── __init__.py             # Test package initialization
 │   └── test_keyword_search.py  # Async testing with fixtures
+│   └── test_mcp_server_protocol.py # MCP server protocol validation
 ├── pyproject.toml              # Poetry configuration and dependencies
 ├── agent.toml                  # Main agent configuration
 ├── demo.py                     # Project demonstration script
 ├── verification.py             # Setup verification and health checks
+├── mcp.json                    # MCP server launch configuration
 └── README.md                   # Comprehensive documentation
 ```
 
@@ -122,8 +136,10 @@ python-mcp-agent-workshop/
 | `src/workshop_mcp/server.py` | MCP protocol implementation | Adding new tools or modifying protocol handling |
 | `src/workshop_mcp/keyword_search.py` | Core search functionality | Enhancing search algorithms or file type support |
 | `agents/keyword_analysis.toml` | Agent behavior configuration | Customizing analysis instructions or output format |
+| `mcp.json` | MCP launch config | Adjusting server startup command |
 | `pyproject.toml` | Dependencies and build config | Adding libraries or changing project metadata |
 | `tests/test_keyword_search.py` | Comprehensive test suite | Adding tests for new features or edge cases |
+| `tests/test_mcp_server_protocol.py` | Server protocol tests | Extending JSON-RPC/server behavior checks |
 
 ---
 
@@ -208,4 +224,4 @@ python-mcp-agent-workshop/
 - **Resource Management:** File handles are properly closed using async context managers
 - **Testing:** Async tests require `@pytest.mark.asyncio` decorator and proper fixture management
 
-*Updated at: 2025-01-27 UTC*
+*Updated at: 2026-01-13 UTC*
