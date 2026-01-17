@@ -194,4 +194,4 @@ mcp_logs/
 
 # Workshop specific
 workshop_temp/
-test_output/
+test_output/.env
