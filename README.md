@@ -10,7 +10,7 @@ backed by async file I/O.
 [Presentation Slides](https://docs.google.com/presentation/d/1YBX8Vsso5QMDNduMP6S4g6pYUjCSisZCq69wvY4IL1c/edit?slide=id.g371d7545128_0_130#slide=id.g371d7545128_0_130)
 
 
-## 🚀 Quick Start
+## Quick Start
 
 
 ```bash
@@ -34,7 +34,7 @@ poetry run pytest
 qodo keyword_analysis --set keyword="{KEYWORD_HERE}"
 ```
 
-## 🧭 Learning Path (From-Scratch MCP Server)
+## Learning Path (From-Scratch MCP Server)
 
 Start with the protocol fundamentals and build up the server step by step:
 
@@ -44,7 +44,7 @@ Start with the protocol fundamentals and build up the server step by step:
 4. [03 - Initialize: Capability Handshake](03-initialize.md)
 5. [04 - Tools: Advertising and Invoking Capabilities](04-tools.md)
 
-## 📋 Prerequisites
+## Prerequisites
 
 Before starting the workshop, ensure you have the following installed:
 
@@ -70,7 +70,7 @@ Before starting the workshop, ensure you have the following installed:
   - Verify: `qodo --version`
   - Docs: [docs.qodo.ai/qodo-documentation/qodo-command](https://docs.qodo.ai/qodo-documentation/qodo-command)
 
-## 🏗️ Architecture Overview
+## Architecture Overview
 
 This workshop demonstrates a complete MCP ecosystem implemented from scratch:
 
@@ -109,7 +109,7 @@ This workshop demonstrates a complete MCP ecosystem implemented from scratch:
 3. **AI Agent** (`agents/keyword_analysis.toml`)
    - Keyword analysis prompt and configuration for Qodo Command
 
-## 🛠️ Usage Examples
+## Usage Examples
 
 ### Basic Keyword Search
 
@@ -156,7 +156,7 @@ poetry run pytest tests/test_keyword_search.py -v
 poetry run pytest -v --tb=long
 ```
 
-## 🔧 Development Setup
+## Development Setup
 
 ### Environment Setup
 
@@ -204,7 +204,7 @@ PYTHONPATH=src poetry run python -m workshop_mcp.server
 poetry run pytest -v -s
 ```
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 python-mcp-agent-workshop/
@@ -228,7 +228,7 @@ python-mcp-agent-workshop/
     └── test_keyword_search.py  # Comprehensive tests
 ```
 
-## 🧪 Testing Strategy
+## Testing Strategy
 
 The project includes tests covering:
 
@@ -237,7 +237,7 @@ The project includes tests covering:
 - **Edge cases**: Empty files, binary files, and invalid input handling
 - **Concurrency**: Async operations and multi-directory searches
 
-## 🚨 Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
@@ -295,7 +295,7 @@ This checks:
 - Agent configuration validity
 
 
-## 📚 Learning Resources
+## Learning Resources
 
 ### MCP Protocol
 - [MCP Specification](https://spec.modelcontextprotocol.io/)
@@ -309,7 +309,7 @@ This checks:
 - [Qodo Documentation](https://docs.qodo.ai/)
 - [Agent Configuration Guide](https://docs.qodo.ai/qodo-documentation/qodo-command/features/creating-and-managing-agents)
 
-## 🤝 Contributing
+## Contributing
 
 1. **Fork the repository**
 2. **Create feature branch**: `git checkout -b feature/amazing-feature`
@@ -326,24 +326,24 @@ This checks:
 - Include unit tests for new features
 - Update documentation as needed
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - **Model Context Protocol** team for the excellent protocol specification
 - **Poetry** team for dependency management
 - **Qodo** team for agent development platform
 - **Python** community for async/await support
 
-## 📞 Support
+## Support
 
 - **Issues**: Use your fork's issue tracker
 - **Discussions**: Use your fork's discussions board
 
 ---
 
-**Happy coding! 🎉**
+**Happy coding!**
 
 *This workshop provides a solid foundation for building production-ready MCP agents in Python. Extend and customize it for your specific use cases.*
