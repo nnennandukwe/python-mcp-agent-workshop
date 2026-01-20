@@ -170,9 +170,22 @@ def nested_world():
             "WORLD", [str(temp_test_directory)], case_insensitive=True
         )
 
+        # Case-insensitive search should find *at least* the matches of a
+        # case-sensitive search, and may find more if the corpus contains
+        # different casings (e.g., "World").
         assert (
             result_upper["summary"]["total_occurrences"]
-            == result_lower["summary"]["total_occurrences"]
+            >= result_lower["summary"]["total_occurrences"]
+        )
+
+        # Also verify that case-insensitive search is independent of the
+        # provided casing of the keyword.
+        result_lower_ci = await search_tool.execute(
+            "world", [str(temp_test_directory)], case_insensitive=True
+        )
+        assert (
+            result_upper["summary"]["total_occurrences"]
+            == result_lower_ci["summary"]["total_occurrences"]
         )
 
     @pytest.mark.asyncio
