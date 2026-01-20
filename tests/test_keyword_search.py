@@ -161,6 +161,55 @@ def nested_world():
         )
 
     @pytest.mark.asyncio
+    async def test_case_insensitive_option(
+        self, search_tool: KeywordSearchTool, temp_test_directory: Path
+    ):
+        """Test that case-insensitive search finds matches across cases."""
+        result_lower = await search_tool.execute("world", [str(temp_test_directory)])
+        result_upper = await search_tool.execute(
+            "WORLD", [str(temp_test_directory)], case_insensitive=True
+        )
+
+        assert (
+            result_upper["summary"]["total_occurrences"]
+            == result_lower["summary"]["total_occurrences"]
+        )
+
+    @pytest.mark.asyncio
+    async def test_regex_option(
+        self, search_tool: KeywordSearchTool, temp_test_directory: Path
+    ):
+        """Test that regex search finds pattern matches."""
+        result = await search_tool.execute(
+            r"w.rld", [str(temp_test_directory)], use_regex=True
+        )
+
+        assert result["summary"]["total_occurrences"] > 0
+
+    @pytest.mark.asyncio
+    async def test_include_exclude_patterns(
+        self, search_tool: KeywordSearchTool, temp_test_directory: Path
+    ):
+        """Test that include/exclude patterns filter files."""
+        include_result = await search_tool.execute(
+            "world", [str(temp_test_directory)], include_patterns=["*.md"]
+        )
+
+        assert include_result["summary"]["total_files_searched"] > 0
+        assert all(
+            file_path.endswith(".md")
+            for file_path in include_result["files"].keys()
+        )
+
+        exclude_result = await search_tool.execute(
+            "world", [str(temp_test_directory)], exclude_patterns=["*.md"]
+        )
+        assert all(
+            not file_path.endswith(".md")
+            for file_path in exclude_result["files"].keys()
+        )
+
+    @pytest.mark.asyncio
     async def test_multiple_root_paths(
         self, search_tool: KeywordSearchTool, temp_test_directory: Path
     ):
