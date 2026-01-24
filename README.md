@@ -339,11 +339,6 @@ python-mcp-agent-workshop/
 │   ├── test_mcp_server_protocol.py # Protocol tests (5)
 │   ├── test_agent_config.py        # Agent config validation
 │   └── test_e2e_workflow.py        # End-to-end workflow tests
-│
-└── spec/                       # Project specifications
-    ├── documentation-plan.md
-    ├── e2e-testing-plan.md
-    └── project-completion-plan.md
 ```
 
 ## Testing Strategy
