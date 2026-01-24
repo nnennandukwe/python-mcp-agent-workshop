@@ -64,7 +64,7 @@ qodo keyword_analysis --set keyword="{KEYWORD_HERE}"
 
 ```bash
 # Start the server and send a JSON-RPC request
-echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"performance_check","arguments":{"file_path":"src/workshop_mcp/server.py"}}}' | poetry run python -m workshop_mcp.server
+echo '{"jsonrpc":"2.0","id":1,"method":"call_tool","params":{"name":"performance_check","arguments":{"file_path":"src/workshop_mcp/server.py"}}}' | poetry run python -m workshop_mcp.server
 ```
 
 ## Learning Path (From-Scratch MCP Server)

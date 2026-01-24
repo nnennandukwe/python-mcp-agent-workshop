@@ -1,5 +1,6 @@
 """Performance checker for detecting anti-patterns in Python code."""
 
+from collections import Counter
 from pathlib import Path
 from typing import List, Optional
 
@@ -331,19 +332,17 @@ class PerformanceChecker:
         """
         all_issues = self.check_all()
 
+        severity_counts = Counter(issue.severity for issue in all_issues)
+        category_counts = Counter(issue.category for issue in all_issues)
+
         summary = {
             "total_issues": len(all_issues),
             "by_severity": {
-                Severity.CRITICAL.value: 0,
-                Severity.HIGH.value: 0,
-                Severity.MEDIUM.value: 0,
-                Severity.LOW.value: 0,
+                s.value: severity_counts.get(s, 0) for s in Severity
             },
-            "by_category": {category.value: 0 for category in IssueCategory},
+            "by_category": {
+                c.value: category_counts.get(c, 0) for c in IssueCategory
+            },
         }
-
-        for issue in all_issues:
-            summary["by_severity"][issue.severity.value] += 1
-            summary["by_category"][issue.category.value] += 1
 
         return summary
