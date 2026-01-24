@@ -7,6 +7,7 @@ supporting multiple text file formats with comprehensive error handling and stat
 
 import asyncio
 import logging
+import os
 import re
 from fnmatch import fnmatch
 from pathlib import Path
@@ -197,21 +198,33 @@ class KeywordSearchTool:
             case_insensitive: Whether to perform a case-insensitive search
         """
         try:
-            # Get all files recursively
+            # Use os.walk for efficient directory traversal with pruning
             search_tasks = []
 
-            for file_path in root_path.rglob("*"):
-                if not (file_path.is_file() and self._is_text_file(file_path)):
-                    continue
-                if not self._matches_filters(
-                    file_path, include_patterns, exclude_patterns
-                ):
-                    continue
-                search_tasks.append(
-                    self._search_file(
-                        file_path, keyword, pattern, result, case_insensitive
+            for dirpath, dirnames, filenames in os.walk(root_path):
+                # Prune excluded directories to avoid traversing them
+                # Modify dirnames in-place to prevent descent into excluded dirs
+                if exclude_patterns:
+                    dirnames[:] = [
+                        d for d in dirnames
+                        if not self._should_exclude_dir(d, dirpath, exclude_patterns)
+                    ]
+
+                for filename in filenames:
+                    file_path = Path(dirpath) / filename
+
+                    if not self._is_text_file(file_path):
+                        continue
+                    if not self._matches_filters(
+                        file_path, include_patterns, exclude_patterns
+                    ):
+                        continue
+
+                    search_tasks.append(
+                        self._search_file(
+                            file_path, keyword, pattern, result, case_insensitive
+                        )
                     )
-                )
 
             # Process files concurrently in batches to avoid overwhelming the system
             batch_size = 50
@@ -340,6 +353,21 @@ class KeywordSearchTool:
             # to avoid creating a full lowercase copy of large files
             return len(re.findall(re.escape(keyword), content, re.IGNORECASE))
         return content.count(keyword)
+
+    def _should_exclude_dir(
+        self,
+        dirname: str,
+        parent_path: str,
+        exclude_patterns: List[str],
+    ) -> bool:
+        """Check if a directory should be excluded from traversal."""
+        dir_path = Path(parent_path) / dirname
+        dir_path_str = dir_path.as_posix()
+
+        return any(
+            fnmatch(dir_path_str, pattern) or fnmatch(dirname, pattern)
+            for pattern in exclude_patterns
+        )
 
     def _matches_filters(
         self,
