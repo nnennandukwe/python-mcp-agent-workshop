@@ -1,6 +1,6 @@
-"""AST analyzer for extracting code structure from Python files."""
+"""AST analyzer for extracting code structure from Python files using Astroid."""
 
-import ast
+import astroid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Union
@@ -18,6 +18,7 @@ class FunctionInfo:
     decorators: List[str]
     return_annotation: Optional[str]
     docstring: Optional[str]
+    inferred_types: Dict[str, str]  # Parameter name -> inferred type (when available)
 
 
 @dataclass
@@ -41,6 +42,7 @@ class ImportInfo:
     line_number: int
     is_from_import: bool
     aliases: Dict[str, str]  # Maps imported name to alias
+    resolved_module: Optional[str]  # Fully resolved module path when available
 
 
 @dataclass
@@ -52,14 +54,15 @@ class CallInfo:
     parent_function: Optional[str]
     is_in_loop: bool
     is_in_async_function: bool
+    inferred_callable: Optional[str]  # Fully qualified name when inferred
 
 
 class ASTAnalyzer:
-    """Analyzes Python code using Abstract Syntax Trees."""
+    """Analyzes Python code using Astroid for semantic understanding."""
 
     def __init__(self, source_code: Optional[str] = None, file_path: Optional[str] = None):
         """
-        Initialize the AST analyzer.
+        Initialize the AST analyzer with Astroid.
 
         Args:
             source_code: Python source code as a string
@@ -67,7 +70,7 @@ class ASTAnalyzer:
 
         Raises:
             ValueError: If neither source_code nor file_path is provided
-            SyntaxError: If the source code has syntax errors
+            astroid.AstroidSyntaxError: If the source code has syntax errors
             FileNotFoundError: If file_path doesn't exist
         """
         if source_code is None and file_path is None:
@@ -78,10 +81,18 @@ class ASTAnalyzer:
             if not path.exists():
                 raise FileNotFoundError(f"File not found: {file_path}")
             source_code = path.read_text(encoding="utf-8")
+            self.file_path = str(file_path)
+        else:
+            self.file_path = file_path
 
         self.source_code = source_code
-        self.file_path = file_path
-        self.tree = ast.parse(source_code)
+
+        try:
+            self.tree = astroid.parse(source_code, path=file_path)
+        except astroid.AstroidSyntaxError as e:
+            # Re-raise as SyntaxError for backwards compatibility with tests
+            raise SyntaxError(str(e)) from e
+
         self._functions: Optional[List[FunctionInfo]] = None
         self._loops: Optional[List[LoopInfo]] = None
         self._imports: Optional[List[ImportInfo]] = None
@@ -98,10 +109,9 @@ class ASTAnalyzer:
             return self._functions
 
         functions = []
-        for node in ast.walk(self.tree):
-            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                func_info = self._extract_function_info(node)
-                functions.append(func_info)
+        for node in self.tree.nodes_of_class((astroid.FunctionDef, astroid.AsyncFunctionDef)):
+            func_info = self._extract_function_info(node)
+            functions.append(func_info)
 
         self._functions = functions
         return functions
@@ -132,33 +142,39 @@ class ASTAnalyzer:
             return self._imports
 
         imports = []
-        for node in ast.walk(self.tree):
-            if isinstance(node, ast.Import):
-                for alias in node.names:
-                    import_info = ImportInfo(
-                        module=alias.name,
-                        names=[alias.name],
-                        line_number=node.lineno,
-                        is_from_import=False,
-                        aliases={alias.name: alias.asname} if alias.asname else {},
-                    )
-                    imports.append(import_info)
-            elif isinstance(node, ast.ImportFrom):
-                if node.module:
-                    aliases = {}
-                    names = []
-                    for alias in node.names:
-                        names.append(alias.name)
-                        if alias.asname:
-                            aliases[alias.name] = alias.asname
-                    import_info = ImportInfo(
-                        module=node.module,
-                        names=names,
-                        line_number=node.lineno,
-                        is_from_import=True,
-                        aliases=aliases,
-                    )
-                    imports.append(import_info)
+
+        # Handle regular imports
+        for node in self.tree.nodes_of_class(astroid.Import):
+            for name, alias in node.names:
+                import_info = ImportInfo(
+                    module=name,
+                    names=[name],
+                    line_number=node.lineno,
+                    is_from_import=False,
+                    aliases={name: alias} if alias else {},
+                    resolved_module=None,  # Could be enhanced with module resolution
+                )
+                imports.append(import_info)
+
+        # Handle from imports
+        for node in self.tree.nodes_of_class(astroid.ImportFrom):
+            if node.modname:
+                aliases = {}
+                names = []
+                for name, alias in node.names:
+                    names.append(name)
+                    if alias:
+                        aliases[name] = alias
+
+                import_info = ImportInfo(
+                    module=node.modname,
+                    names=names,
+                    line_number=node.lineno,
+                    is_from_import=True,
+                    aliases=aliases,
+                    resolved_module=None,
+                )
+                imports.append(import_info)
 
         self._imports = imports
         return imports
@@ -244,67 +260,76 @@ class ASTAnalyzer:
         for call in calls:
             if call.is_in_async_function:
                 # Check if it's a potentially blocking call
-                if any(pattern in call.function_name.lower() for pattern in blocking_patterns):
+                func_name_lower = call.function_name.lower()
+                if any(pattern in func_name_lower for pattern in blocking_patterns):
                     # Check if it's not an async version (aiofiles, asyncio.sleep, etc.)
-                    if not call.function_name.startswith(("aio", "async")):
+                    if not (call.function_name.startswith(("aio", "async")) or
+                           "asyncio" in func_name_lower):
                         return True
         return False
 
-    def _extract_function_info(self, node: Union[ast.FunctionDef, ast.AsyncFunctionDef]) -> FunctionInfo:
+    def _extract_function_info(self, node: Union[astroid.FunctionDef, astroid.AsyncFunctionDef]) -> FunctionInfo:
         """Extract metadata from a function definition node."""
-        parameters = [arg.arg for arg in node.args.args]
-        decorators = [self._get_decorator_name(dec) for dec in node.decorator_list]
+        parameters = [arg.name for arg in node.args.args]
+        decorators = [self._get_decorator_name(dec) for dec in node.decorators.nodes] if node.decorators else []
 
         return_annotation = None
         if node.returns:
-            return_annotation = ast.unparse(node.returns)
+            return_annotation = node.returns.as_string()
 
-        docstring = ast.get_docstring(node)
+        docstring = node.doc_node.value if node.doc_node else None
+
+        # Attempt type inference for parameters (simplified)
+        inferred_types = {}
+        for arg in node.args.args:
+            if hasattr(arg, 'annotation') and arg.annotation:
+                inferred_types[arg.name] = arg.annotation.as_string()
 
         return FunctionInfo(
             name=node.name,
             line_number=node.lineno,
             end_line_number=node.end_lineno or node.lineno,
-            is_async=isinstance(node, ast.AsyncFunctionDef),
+            is_async=isinstance(node, astroid.AsyncFunctionDef),
             parameters=parameters,
             decorators=decorators,
             return_annotation=return_annotation,
             docstring=docstring,
+            inferred_types=inferred_types,
         )
 
-    def _get_decorator_name(self, decorator: ast.expr) -> str:
+    def _get_decorator_name(self, decorator: astroid.NodeNG) -> str:
         """Extract the name of a decorator."""
-        if isinstance(decorator, ast.Name):
-            return decorator.id
-        elif isinstance(decorator, ast.Call):
-            if isinstance(decorator.func, ast.Name):
-                return decorator.func.id
-            elif isinstance(decorator.func, ast.Attribute):
-                return ast.unparse(decorator.func)
-        elif isinstance(decorator, ast.Attribute):
-            return ast.unparse(decorator)
-        return ast.unparse(decorator)
+        if isinstance(decorator, astroid.Name):
+            return decorator.name
+        elif isinstance(decorator, astroid.Call):
+            if isinstance(decorator.func, astroid.Name):
+                return decorator.func.name
+            elif isinstance(decorator.func, astroid.Attribute):
+                return decorator.func.as_string()
+        elif isinstance(decorator, astroid.Attribute):
+            return decorator.as_string()
+        return decorator.as_string()
 
     def _extract_loops_recursive(
         self,
-        node: ast.AST,
+        node: astroid.NodeNG,
         loops: List[LoopInfo],
         parent_function: Optional[str],
         nesting_level: int,
         is_in_async: bool,
     ) -> None:
-        """Recursively extract loop information from AST nodes."""
+        """Recursively extract loop information from Astroid nodes."""
         # Check if we're entering a function
         current_function = parent_function
         current_is_async = is_in_async
 
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        if isinstance(node, (astroid.FunctionDef, astroid.AsyncFunctionDef)):
             current_function = node.name
-            current_is_async = isinstance(node, ast.AsyncFunctionDef)
+            current_is_async = isinstance(node, astroid.AsyncFunctionDef)
 
         # Process loops
-        if isinstance(node, (ast.For, ast.While, ast.AsyncFor)):
-            loop_type = "for" if isinstance(node, (ast.For, ast.AsyncFor)) else "while"
+        if isinstance(node, (astroid.For, astroid.While)):
+            loop_type = "for" if isinstance(node, astroid.For) else "while"
             loop_info = LoopInfo(
                 type=loop_type,
                 line_number=node.lineno,
@@ -316,64 +341,82 @@ class ASTAnalyzer:
             loops.append(loop_info)
 
             # Recurse into loop body with increased nesting
-            for child in ast.iter_child_nodes(node):
+            for child in node.get_children():
                 self._extract_loops_recursive(
                     child, loops, current_function, nesting_level + 1, current_is_async
                 )
         else:
             # Continue recursion without increasing nesting
-            for child in ast.iter_child_nodes(node):
+            for child in node.get_children():
                 self._extract_loops_recursive(
                     child, loops, current_function, nesting_level, current_is_async
                 )
 
     def _extract_calls_recursive(
         self,
-        node: ast.AST,
+        node: astroid.NodeNG,
         calls: List[CallInfo],
         parent_function: Optional[str],
         is_in_loop: bool,
         is_in_async: bool,
     ) -> None:
-        """Recursively extract function call information from AST nodes."""
+        """Recursively extract function call information from Astroid nodes."""
         # Track function context
         current_function = parent_function
         current_is_async = is_in_async
 
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        if isinstance(node, (astroid.FunctionDef, astroid.AsyncFunctionDef)):
             current_function = node.name
-            current_is_async = isinstance(node, ast.AsyncFunctionDef)
+            current_is_async = isinstance(node, astroid.AsyncFunctionDef)
 
         # Track loop context
         current_in_loop = is_in_loop
-        if isinstance(node, (ast.For, ast.While, ast.AsyncFor)):
+        if isinstance(node, (astroid.For, astroid.While)):
             current_in_loop = True
 
         # Extract call information
-        if isinstance(node, ast.Call):
+        if isinstance(node, astroid.Call):
             function_name = self._get_call_name(node.func)
             if function_name:
+                # Try to infer the fully qualified name
+                inferred_callable = self._infer_callable_name(node.func)
+
                 call_info = CallInfo(
                     function_name=function_name,
                     line_number=node.lineno,
                     parent_function=current_function,
                     is_in_loop=current_in_loop,
                     is_in_async_function=current_is_async,
+                    inferred_callable=inferred_callable,
                 )
                 calls.append(call_info)
 
         # Continue recursion
-        for child in ast.iter_child_nodes(node):
+        for child in node.get_children():
             self._extract_calls_recursive(
                 child, calls, current_function, current_in_loop, current_is_async
             )
 
-    def _get_call_name(self, node: ast.expr) -> Optional[str]:
+    def _get_call_name(self, node: astroid.NodeNG) -> Optional[str]:
         """Extract the name of a function being called."""
-        if isinstance(node, ast.Name):
-            return node.id
-        elif isinstance(node, ast.Attribute):
-            return ast.unparse(node)
+        if isinstance(node, astroid.Name):
+            return node.name
+        elif isinstance(node, astroid.Attribute):
+            return node.as_string()
+        return None
+
+    def _infer_callable_name(self, node: astroid.NodeNG) -> Optional[str]:
+        """
+        Try to infer the fully qualified name of a callable.
+
+        This is where Astroid shines - it can resolve what a function actually is.
+        """
+        try:
+            inferred = next(node.infer(), None)
+            if inferred and hasattr(inferred, 'qname'):
+                return inferred.qname()
+        except (astroid.InferenceError, StopIteration):
+            pass
         return None
 
     def get_source_segment(self, line_start: int, line_end: int) -> str:

@@ -13,6 +13,7 @@ packages = [{include = "workshop_mcp", from = "src"}]
 [tool.poetry.dependencies]
 python = ">=3.10,<4.0"
 aiofiles = "^23.2.0"
+astroid = "^3.0.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4.0"
