@@ -261,6 +261,57 @@ with open('file.txt') as f:
         issue = issues[0]
         assert issue.category == IssueCategory.MEMORY_INEFFICIENCY
 
+    def test_detect_json_load(self):
+        """Test detection of json.load() loading entire file."""
+        source = """
+import json
+
+with open('data.json') as f:
+    data = json.load(f)
+"""
+        checker = PerformanceChecker(source_code=source)
+        issues = checker.check_memory_inefficiencies()
+
+        assert len(issues) > 0
+        issue = issues[0]
+        assert issue.category == IssueCategory.MEMORY_INEFFICIENCY
+        assert issue.severity == Severity.MEDIUM
+        assert "json" in issue.description.lower()
+        assert "ijson" in issue.suggestion.lower() or "streaming" in issue.suggestion.lower()
+
+    def test_detect_pickle_load(self):
+        """Test detection of pickle.load() loading entire file."""
+        source = """
+import pickle
+
+with open('data.pkl', 'rb') as f:
+    data = pickle.load(f)
+"""
+        checker = PerformanceChecker(source_code=source)
+        issues = checker.check_memory_inefficiencies()
+
+        assert len(issues) > 0
+        issue = issues[0]
+        assert issue.category == IssueCategory.MEMORY_INEFFICIENCY
+        assert issue.severity == Severity.MEDIUM
+        assert "pickle" in issue.description.lower()
+        assert "streaming" in issue.suggestion.lower() or "memory-mapped" in issue.suggestion.lower()
+
+    def test_no_false_positives_for_unrelated_functions(self):
+        """Test that functions with 'read' in name don't trigger false positives."""
+        source = """
+def thread_reader():
+    pass
+
+def spreadsheet_loader():
+    pass
+"""
+        checker = PerformanceChecker(source_code=source)
+        issues = checker.check_memory_inefficiencies()
+
+        # Should not flag these functions
+        assert len(issues) == 0
+
 
 class TestCheckAll:
     """Test the check_all method that runs all checks."""

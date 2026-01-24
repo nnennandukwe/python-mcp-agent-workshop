@@ -104,7 +104,6 @@ ASYNC_ALTERNATIVES = {
 # String operations that are inefficient in loops
 INEFFICIENT_STRING_OPERATIONS = {
     "str.__add__",  # String concatenation with +
-    "str.format",  # Repeated format calls
 }
 
 # Memory-intensive operations
@@ -276,3 +275,57 @@ def is_inefficient_string_op(function_name: str, inferred_callable: Optional[str
         return True
 
     return False
+
+
+def is_memory_intensive(function_name: str, inferred_callable: Optional[str]) -> bool:
+    """
+    Check if a function call is memory-intensive.
+
+    Args:
+        function_name: Name of the function being called
+        inferred_callable: Fully qualified name when available
+
+    Returns:
+        True if it's a memory-intensive operation
+    """
+    # Check inferred callable first (most reliable)
+    if inferred_callable:
+        for op in MEMORY_INTENSIVE_OPERATIONS:
+            if inferred_callable.endswith(f".{op}") or inferred_callable == op:
+                return True
+
+    # Use precise matching for function names
+    # Match exact name or attribute access pattern
+    if function_name in MEMORY_INTENSIVE_OPERATIONS:
+        return True
+
+    # Check for attribute access patterns (e.g., "file.read", "json.load")
+    for op in MEMORY_INTENSIVE_OPERATIONS:
+        if function_name == op or function_name.endswith(f".{op}"):
+            return True
+
+    return False
+
+
+def get_memory_optimization_suggestion(function_name: str, inferred_callable: Optional[str]) -> str:
+    """
+    Get optimization suggestion for a memory-intensive operation.
+
+    Args:
+        function_name: Name of the function being called
+        inferred_callable: Fully qualified name when available
+
+    Returns:
+        Suggestion for optimizing the operation
+    """
+    # Determine operation type
+    if "json.load" in function_name or (inferred_callable and "json.load" in inferred_callable):
+        return "Use ijson for streaming JSON parsing to avoid loading entire file into memory"
+    elif "pickle.load" in function_name or (inferred_callable and "pickle.load" in inferred_callable):
+        return "Consider streaming pickle data or using memory-mapped files for large pickle files"
+    elif "readlines" in function_name:
+        return "Iterate over the file object directly instead of readlines() to process line-by-line"
+    elif "read" in function_name:
+        return "Read file in chunks or line-by-line for large files to reduce memory usage"
+    else:
+        return "Consider streaming or chunked processing to reduce memory usage"

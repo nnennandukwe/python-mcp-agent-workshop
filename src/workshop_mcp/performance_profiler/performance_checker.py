@@ -9,10 +9,12 @@ from .patterns import (
     PerformanceIssue,
     Severity,
     get_async_alternative,
+    get_memory_optimization_suggestion,
     get_orm_type,
     get_orm_type_from_function_name,
     is_blocking_io,
     is_inefficient_string_op,
+    is_memory_intensive,
     is_orm_query,
 )
 
@@ -227,7 +229,8 @@ class PerformanceChecker:
         Detect memory inefficiency patterns.
 
         Common issues:
-        - Reading entire large files into memory
+        - Reading entire large files into memory (read, readlines)
+        - Loading entire data structures (json.load, pickle.load)
         - Unbounded list growth
         - Missing generator usage
 
@@ -237,26 +240,41 @@ class PerformanceChecker:
         issues = []
         calls = self.analyzer.get_calls()
 
-        # Check for reading entire files
+        # Check for memory-intensive operations
         for call in calls:
-            if call.function_name in ["read", "readlines"] or call.function_name.endswith(".read") or call.function_name.endswith(".readlines"):
-                # Check if this is a file read operation
-                if "read" in call.function_name.lower():
-                    code_snippet = self.analyzer.get_source_segment(
-                        call.line_number, call.line_number
-                    )
+            if is_memory_intensive(call.function_name, call.inferred_callable):
+                suggestion = get_memory_optimization_suggestion(
+                    call.function_name, call.inferred_callable
+                )
 
-                    issue = PerformanceIssue(
-                        category=IssueCategory.MEMORY_INEFFICIENCY,
-                        severity=Severity.MEDIUM,
-                        line_number=call.line_number,
-                        end_line_number=call.line_number,
-                        description=f"Reading entire file with {call.function_name}() loads all data into memory",
-                        suggestion="Consider reading file line-by-line or in chunks for large files",
-                        code_snippet=code_snippet,
-                        function_name=call.parent_function,
-                    )
-                    issues.append(issue)
+                code_snippet = self.analyzer.get_source_segment(
+                    call.line_number, call.line_number
+                )
+
+                # Determine specific description based on operation type
+                operation = call.function_name
+                if "json.load" in operation:
+                    description = f"Loading entire JSON file with {operation}() loads all data into memory"
+                elif "pickle.load" in operation:
+                    description = f"Loading entire pickle file with {operation}() loads all data into memory"
+                elif "readlines" in operation:
+                    description = f"Reading all lines with {operation}() loads entire file into memory"
+                elif "read" in operation:
+                    description = f"Reading entire file with {operation}() loads all data into memory"
+                else:
+                    description = f"Memory-intensive operation {operation}() loads large amount of data into memory"
+
+                issue = PerformanceIssue(
+                    category=IssueCategory.MEMORY_INEFFICIENCY,
+                    severity=Severity.MEDIUM,
+                    line_number=call.line_number,
+                    end_line_number=call.line_number,
+                    description=description,
+                    suggestion=suggestion,
+                    code_snippet=code_snippet,
+                    function_name=call.parent_function,
+                )
+                issues.append(issue)
 
         return issues
 
