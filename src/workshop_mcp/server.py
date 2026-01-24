@@ -214,7 +214,10 @@ class WorkshopMCPServer:
                         "properties": {
                             "keyword": {
                                 "type": "string",
-                                "description": "The keyword to search for (case-sensitive)",
+                                "description": (
+                                    "The keyword or regex pattern to search for "
+                                    "(case-sensitive by default)"
+                                ),
                                 "minLength": 1,
                             },
                             "root_paths": {
@@ -225,6 +228,30 @@ class WorkshopMCPServer:
                                     "description": "Directory path to search",
                                 },
                                 "minItems": 1,
+                            },
+                            "case_insensitive": {
+                                "type": "boolean",
+                                "description": "Enable case-insensitive matching",
+                                "default": False,
+                            },
+                            "use_regex": {
+                                "type": "boolean",
+                                "description": "Treat keyword as a regex pattern",
+                                "default": False,
+                            },
+                            "include_patterns": {
+                                "type": "array",
+                                "description": (
+                                    "Optional glob patterns to include matching files"
+                                ),
+                                "items": {"type": "string"},
+                            },
+                            "exclude_patterns": {
+                                "type": "array",
+                                "description": (
+                                    "Optional glob patterns to exclude matching files"
+                                ),
+                                "items": {"type": "string"},
                             },
                         },
                         "required": ["keyword", "root_paths"],
@@ -315,6 +342,41 @@ class WorkshopMCPServer:
                 JsonRpcError(-32602, "root_paths must be a list of strings"),
             )
 
+        case_insensitive = arguments.get("case_insensitive", False)
+        use_regex = arguments.get("use_regex", False)
+        include_patterns = arguments.get("include_patterns")
+        exclude_patterns = arguments.get("exclude_patterns")
+
+        if not isinstance(case_insensitive, bool):
+            return self._error_response(
+                request_id,
+                JsonRpcError(-32602, "case_insensitive must be a boolean"),
+            )
+
+        if not isinstance(use_regex, bool):
+            return self._error_response(
+                request_id,
+                JsonRpcError(-32602, "use_regex must be a boolean"),
+            )
+
+        if include_patterns is not None and (
+            not isinstance(include_patterns, list)
+            or not all(isinstance(pattern, str) for pattern in include_patterns)
+        ):
+            return self._error_response(
+                request_id,
+                JsonRpcError(-32602, "include_patterns must be a list of strings"),
+            )
+
+        if exclude_patterns is not None and (
+            not isinstance(exclude_patterns, list)
+            or not all(isinstance(pattern, str) for pattern in exclude_patterns)
+        ):
+            return self._error_response(
+                request_id,
+                JsonRpcError(-32602, "exclude_patterns must be a list of strings"),
+            )
+
         try:
             logger.info(
                 "Executing keyword search for '%s' in %d paths",
@@ -322,7 +384,14 @@ class WorkshopMCPServer:
                 len(root_paths),
             )
             result = self.loop.run_until_complete(
-                self.keyword_search_tool.execute(keyword, root_paths)
+                self.keyword_search_tool.execute(
+                    keyword,
+                    root_paths,
+                    case_insensitive=case_insensitive,
+                    use_regex=use_regex,
+                    include_patterns=include_patterns,
+                    exclude_patterns=exclude_patterns,
+                )
             )
             result_json = json.dumps(result, indent=2, ensure_ascii=False)
             payload = {
