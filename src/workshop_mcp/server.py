@@ -1,19 +1,20 @@
 """
-MCP Server for Workshop Keyword Search Tool.
+MCP Server for Workshop Tools.
 
 This module implements MCP over stdio without the official MCP SDK.
 It handles JSON-RPC 2.0 parsing, Content-Length framing, and dispatches
-requests to the keyword search tool.
+requests to keyword search and performance profiler tools.
 """
 
 import asyncio
 import json
 import logging
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from typing import Any, Dict, Optional
 
 from .keyword_search import KeywordSearchTool
+from .performance_profiler import PerformanceChecker
 
 # Configure logging
 logging.basicConfig(
@@ -228,6 +229,32 @@ class WorkshopMCPServer:
                         },
                         "required": ["keyword", "root_paths"],
                     },
+                },
+                {
+                    "name": "performance_check",
+                    "description": (
+                        "Analyze Python code for performance anti-patterns and inefficiencies. "
+                        "Detects N+1 queries, blocking I/O in async functions, inefficient loops, "
+                        "memory inefficiencies, and provides actionable suggestions for optimization."
+                    ),
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {
+                            "file_path": {
+                                "type": "string",
+                                "description": "Path to the Python file to analyze",
+                                "minLength": 1,
+                            },
+                            "source_code": {
+                                "type": "string",
+                                "description": "Optional Python source code string to analyze instead of file",
+                            },
+                        },
+                        "oneOf": [
+                            {"required": ["file_path"]},
+                            {"required": ["source_code"]},
+                        ],
+                    },
                 }
             ]
         }
@@ -245,12 +272,19 @@ class WorkshopMCPServer:
         name = params.get("name")
         arguments = params.get("arguments", {})
 
-        if name != "keyword_search":
+        if name == "keyword_search":
+            return self._execute_keyword_search(request_id, arguments)
+        elif name == "performance_check":
+            return self._execute_performance_check(request_id, arguments)
+        else:
             return self._error_response(
                 request_id,
                 JsonRpcError(-32602, "Unknown tool", {"tool": name}),
             )
 
+    def _execute_keyword_search(
+        self, request_id: Any, arguments: Dict[str, Any]
+    ) -> Dict[str, Any]:
         if not isinstance(arguments, dict):
             return self._error_response(
                 request_id,
@@ -308,7 +342,97 @@ class WorkshopMCPServer:
                 JsonRpcError(
                     -32603,
                     "Internal error",
-                    {"type": type(exc).__name__, "message": str(exc)},
+                    {"details": "An unexpected error occurred. Check server logs for details."},
+                ),
+            )
+
+    def _execute_performance_check(
+        self, request_id: Any, arguments: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        if not isinstance(arguments, dict):
+            return self._error_response(
+                request_id,
+                JsonRpcError(-32602, "Invalid params", {"expected": "object"}),
+            )
+
+        file_path = arguments.get("file_path")
+        source_code = arguments.get("source_code")
+
+        # Validate that exactly one is provided
+        if not file_path and not source_code:
+            return self._error_response(
+                request_id,
+                JsonRpcError(
+                    -32602, "Either file_path or source_code must be provided"
+                ),
+            )
+        if file_path and source_code:
+            return self._error_response(
+                request_id,
+                JsonRpcError(
+                    -32602, "Provide only one of file_path or source_code"
+                ),
+            )
+
+        try:
+            if file_path:
+                logger.info("Executing performance check on file: %s", file_path)
+                checker = PerformanceChecker(file_path=file_path)
+            else:
+                logger.info("Executing performance check on source code")
+                checker = PerformanceChecker(source_code=source_code)
+
+            # Run all performance checks
+            issues = checker.check_all()
+
+            # Get summary
+            summary = checker.get_summary()
+
+            # Format issues for output using list comprehension
+            issues_data = [
+                {
+                    "category": issue.category.value,
+                    "severity": issue.severity.value,
+                    "line_number": issue.line_number,
+                    "end_line_number": issue.end_line_number,
+                    "description": issue.description,
+                    "suggestion": issue.suggestion,
+                    "code_snippet": issue.code_snippet,
+                    "function_name": issue.function_name,
+                }
+                for issue in issues
+            ]
+
+            # Return structured result with schema-aligned fields
+            result = {
+                "content": [
+                    {
+                        "type": "json",
+                        "json": {
+                            "success": True,
+                            "file_analyzed": file_path or "source_code",
+                            "summary": summary,
+                            "issues": issues_data,
+                        },
+                    }
+                ],
+            }
+            return self._success_response(request_id, result)
+
+        except (ValueError, FileNotFoundError, SyntaxError) as exc:
+            # Parameter or resource error
+            return self._error_response(
+                request_id,
+                JsonRpcError(-32602, str(exc)),
+            )
+        except Exception as exc:
+            logger.exception("Error executing performance_check")
+            return self._error_response(
+                request_id,
+                JsonRpcError(
+                    -32603,
+                    "Internal error",
+                    {"details": "An unexpected error occurred. Check server logs for details."},
                 ),
             )
 
