@@ -342,7 +342,7 @@ class WorkshopMCPServer:
                 JsonRpcError(
                     -32603,
                     "Internal error",
-                    {"type": type(exc).__name__, "message": str(exc)},
+                    {"details": "An unexpected error occurred. Check server logs for details."},
                 ),
             )
 
@@ -432,7 +432,7 @@ class WorkshopMCPServer:
                 JsonRpcError(
                     -32603,
                     "Internal error",
-                    {"type": type(exc).__name__, "message": str(exc)},
+                    {"details": "An unexpected error occurred. Check server logs for details."},
                 ),
             )
 
