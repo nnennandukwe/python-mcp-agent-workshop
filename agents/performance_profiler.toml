@@ -178,11 +178,21 @@ output_schema = """
             "type": "object",
             "properties": {
                 "total_issues": {"type": "integer"},
-                "critical_count": {"type": "integer"},
-                "high_count": {"type": "integer"},
-                "medium_count": {"type": "integer"},
-                "low_count": {"type": "integer"},
-                "overall_assessment": {"type": "string"}
+                "by_severity": {
+                    "type": "object",
+                    "description": "Issue counts grouped by severity level",
+                    "properties": {
+                        "critical": {"type": "integer"},
+                        "high": {"type": "integer"},
+                        "medium": {"type": "integer"},
+                        "low": {"type": "integer"}
+                    }
+                },
+                "by_category": {
+                    "type": "object",
+                    "description": "Issue counts grouped by category",
+                    "additionalProperties": {"type": "integer"}
+                }
             }
         },
         "critical_issues": {
