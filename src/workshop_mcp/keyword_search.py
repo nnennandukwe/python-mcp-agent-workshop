@@ -307,11 +307,24 @@ class KeywordSearchTool:
     ) -> Optional[Pattern[str]]:
         if not use_regex:
             return None
+
+        # Basic ReDoS protection: reject patterns with nested quantifiers
+        # that could cause catastrophic backtracking (e.g., (a+)+, (.*)*)
+        dangerous_patterns = [
+            r'\([^)]*[+*][^)]*\)[+*]',  # Nested quantifiers like (a+)+
+            r'\([^)]*\|[^)]*\)[+*]',     # Alternation with quantifier like (a|b)+
+        ]
+        for dangerous in dangerous_patterns:
+            if re.search(dangerous, keyword):
+                raise ValueError(
+                    "Regex pattern rejected: potentially unsafe pattern detected"
+                )
+
         flags = re.IGNORECASE if case_insensitive else 0
         try:
             return re.compile(keyword, flags=flags)
-        except re.error as exc:
-            raise ValueError(f"Invalid regex pattern: {exc}") from exc
+        except re.error:
+            raise ValueError("Invalid regex pattern")
 
     def _count_occurrences(
         self,
@@ -323,7 +336,9 @@ class KeywordSearchTool:
         if pattern is not None:
             return len(pattern.findall(content))
         if case_insensitive:
-            return content.lower().count(keyword.lower())
+            # Use re.findall with IGNORECASE instead of content.lower()
+            # to avoid creating a full lowercase copy of large files
+            return len(re.findall(re.escape(keyword), content, re.IGNORECASE))
         return content.count(keyword)
 
     def _matches_filters(

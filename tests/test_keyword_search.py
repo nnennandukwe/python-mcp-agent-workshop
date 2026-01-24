@@ -200,6 +200,24 @@ def nested_world():
         assert result["summary"]["total_occurrences"] > 0
 
     @pytest.mark.asyncio
+    async def test_regex_redos_protection(
+        self, search_tool: KeywordSearchTool, temp_test_directory: Path
+    ):
+        """Test that dangerous regex patterns are rejected to prevent ReDoS."""
+        # Pattern with nested quantifiers that could cause catastrophic backtracking
+        dangerous_patterns = [
+            r"(a+)+",      # Classic ReDoS pattern
+            r"(.*)*",      # Nested star quantifiers
+            r"(a|b)+",     # Alternation with quantifier
+        ]
+
+        for pattern in dangerous_patterns:
+            with pytest.raises(ValueError, match="potentially unsafe pattern"):
+                await search_tool.execute(
+                    pattern, [str(temp_test_directory)], use_regex=True
+                )
+
+    @pytest.mark.asyncio
     async def test_include_exclude_patterns(
         self, search_tool: KeywordSearchTool, temp_test_directory: Path
     ):
