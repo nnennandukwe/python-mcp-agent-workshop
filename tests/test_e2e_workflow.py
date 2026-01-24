@@ -44,9 +44,9 @@ class TestBasicPerformanceAnalysis:
 
         content = response["result"]["content"]
         assert len(content) == 1
-        assert content[0]["type"] == "text"
+        assert content[0]["type"] == "json"
 
-        result = json.loads(content[0]["text"])
+        result = content[0]["json"]
 
         # Verify summary structure
         assert "summary" in result
@@ -79,7 +79,7 @@ class TestBasicPerformanceAnalysis:
         }
 
         response = server._handle_request(request)
-        result = json.loads(response["result"]["content"][0]["text"])
+        result = response["result"]["content"][0]["json"]
 
         # Collect all detected categories
         detected_categories = set(issue["category"] for issue in result["issues"])
@@ -111,7 +111,7 @@ class TestBasicPerformanceAnalysis:
         }
 
         response = server._handle_request(request)
-        result = json.loads(response["result"]["content"][0]["text"])
+        result = response["result"]["content"][0]["json"]
 
         required_fields = {
             "category",
@@ -167,7 +167,7 @@ class TestCleanCodeAnalysis:
         assert "result" in response
         assert "error" not in response
 
-        result = json.loads(response["result"]["content"][0]["text"])
+        result = response["result"]["content"][0]["json"]
 
         # Should have zero critical issues (blocking I/O in async)
         # The good file uses proper async patterns
@@ -210,7 +210,7 @@ class Calculator:
         }
 
         response = server._handle_request(request)
-        result = json.loads(response["result"]["content"][0]["text"])
+        result = response["result"]["content"][0]["json"]
 
         # Truly clean code should have zero issues
         assert result["summary"]["total_issues"] == 0
@@ -256,7 +256,7 @@ def build_string_badly(items):
         assert "result" in response
         assert "error" not in response
 
-        result = json.loads(response["result"]["content"][0]["text"])
+        result = response["result"]["content"][0]["json"]
 
         # Should detect issues in the provided source code
         assert result["summary"]["total_issues"] >= 2
@@ -293,7 +293,7 @@ def filter_items(items):
         }
 
         response = server._handle_request(request)
-        result = json.loads(response["result"]["content"][0]["text"])
+        result = response["result"]["content"][0]["json"]
 
         # Should have no issues
         assert result["summary"]["total_issues"] == 0
@@ -436,7 +436,7 @@ class TestMixedCodeAnalysis:
         response = server._handle_request(request)
 
         assert "result" in response
-        result = json.loads(response["result"]["content"][0]["text"])
+        result = response["result"]["content"][0]["json"]
 
         # Should find at least the blocking I/O issue
         assert result["summary"]["total_issues"] >= 1
@@ -540,7 +540,7 @@ class TestSeverityPrioritization:
         }
 
         response = server._handle_request(request)
-        result = json.loads(response["result"]["content"][0]["text"])
+        result = response["result"]["content"][0]["json"]
 
         # Group issues by severity
         issues_by_severity = {}

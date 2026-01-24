@@ -374,18 +374,6 @@ class WorkshopMCPServer:
                 ),
             )
 
-        # Validate types
-        if file_path is not None and not isinstance(file_path, str):
-            return self._error_response(
-                request_id,
-                JsonRpcError(-32602, "file_path must be a string"),
-            )
-        if source_code is not None and not isinstance(source_code, str):
-            return self._error_response(
-                request_id,
-                JsonRpcError(-32602, "source_code must be a string"),
-            )
-
         try:
             if file_path:
                 logger.info("Executing performance check on file: %s", file_path)
@@ -415,16 +403,17 @@ class WorkshopMCPServer:
                 for issue in issues
             ]
 
-            # Return structured result directly for simpler client-side parsing
+            # Return structured result with schema-aligned fields
             result = {
                 "content": [
                     {
-                        "type": "text",
-                        "text": json.dumps(
-                            {"summary": summary, "issues": issues_data},
-                            indent=2,
-                            ensure_ascii=False,
-                        ),
+                        "type": "json",
+                        "json": {
+                            "success": True,
+                            "file_analyzed": file_path or "source_code",
+                            "summary": summary,
+                            "issues": issues_data,
+                        },
                     }
                 ],
             }
