@@ -358,12 +358,19 @@ class WorkshopMCPServer:
         file_path = arguments.get("file_path")
         source_code = arguments.get("source_code")
 
-        # Validate that at least one is provided
+        # Validate that exactly one is provided
         if not file_path and not source_code:
             return self._error_response(
                 request_id,
                 JsonRpcError(
                     -32602, "Either file_path or source_code must be provided"
+                ),
+            )
+        if file_path and source_code:
+            return self._error_response(
+                request_id,
+                JsonRpcError(
+                    -32602, "Provide only one of file_path or source_code"
                 ),
             )
 
@@ -393,10 +400,9 @@ class WorkshopMCPServer:
             # Get summary
             summary = checker.get_summary()
 
-            # Format issues for output
-            issues_data = []
-            for issue in issues:
-                issues_data.append({
+            # Format issues for output using list comprehension
+            issues_data = [
+                {
                     "category": issue.category.value,
                     "severity": issue.severity.value,
                     "line_number": issue.line_number,
@@ -405,18 +411,24 @@ class WorkshopMCPServer:
                     "suggestion": issue.suggestion,
                     "code_snippet": issue.code_snippet,
                     "function_name": issue.function_name,
-                })
+                }
+                for issue in issues
+            ]
 
+            # Return structured result directly for simpler client-side parsing
             result = {
-                "summary": summary,
-                "issues": issues_data,
+                "content": [
+                    {
+                        "type": "text",
+                        "text": json.dumps(
+                            {"summary": summary, "issues": issues_data},
+                            indent=2,
+                            ensure_ascii=False,
+                        ),
+                    }
+                ],
             }
-
-            result_json = json.dumps(result, indent=2, ensure_ascii=False)
-            payload = {
-                "content": [{"type": "text", "text": result_json}],
-            }
-            return self._success_response(request_id, payload)
+            return self._success_response(request_id, result)
 
         except (ValueError, FileNotFoundError, SyntaxError) as exc:
             # Parameter or resource error
