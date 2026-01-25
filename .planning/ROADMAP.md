@@ -10,7 +10,7 @@ This security hardening milestone eliminates Qodo code review warnings by implem
 - Integer phases (1, 2, 3): Planned milestone work
 - Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
 
-- [ ] **Phase 1: Path Validation** - Prevent arbitrary file read via path traversal
+- [x] **Phase 1: Path Validation** - Prevent arbitrary file read via path traversal
 - [ ] **Phase 2: ReDoS Protection** - Prevent regex denial-of-service attacks
 - [ ] **Phase 3: Error Sanitization** - Prevent information disclosure via error messages
 
@@ -28,8 +28,8 @@ This security hardening milestone eliminates Qodo code review warnings by implem
 **Plans**: 2 plans
 
 Plans:
-- [ ] 01-01-PLAN.md — PathValidator security module with TDD (exceptions, validation, tests)
-- [ ] 01-02-PLAN.md — Server integration (wire PathValidator into MCP server)
+- [x] 01-01-PLAN.md — PathValidator security module with TDD (exceptions, validation, tests)
+- [x] 01-02-PLAN.md — Server integration (wire PathValidator into MCP server)
 
 ### Phase 2: ReDoS Protection
 **Goal**: Regex operations cannot cause denial-of-service
@@ -66,7 +66,7 @@ Phases execute in numeric order: 1 -> 2 -> 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Path Validation | 0/2 | Planned | - |
+| 1. Path Validation | 2/2 | Complete | 2026-01-25 |
 | 2. ReDoS Protection | 0/TBD | Not started | - |
 | 3. Error Sanitization | 0/TBD | Not started | - |
 

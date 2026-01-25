@@ -9,9 +9,9 @@ Requirements for this security hardening milestone. Each maps to roadmap phases.
 
 ### Path Validation
 
-- [ ] **PATH-01**: Validate file_path parameter is within allowed directory using pathlib.resolve() + is_relative_to()
-- [ ] **PATH-02**: Block absolute paths that escape the root directory
-- [ ] **PATH-03**: Configurable allowed roots via environment variable
+- [x] **PATH-01**: Validate file_path parameter is within allowed directory using pathlib.resolve() + is_relative_to()
+- [x] **PATH-02**: Block absolute paths that escape the root directory
+- [x] **PATH-03**: Configurable allowed roots via environment variable
 
 ### ReDoS Protection
 
@@ -52,9 +52,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PATH-01 | Phase 1 | Pending |
-| PATH-02 | Phase 1 | Pending |
-| PATH-03 | Phase 1 | Pending |
+| PATH-01 | Phase 1 | Complete |
+| PATH-02 | Phase 1 | Complete |
+| PATH-03 | Phase 1 | Complete |
 | REDOS-01 | Phase 2 | Pending |
 | REDOS-02 | Phase 2 | Pending |
 | REDOS-03 | Phase 2 | Pending |
