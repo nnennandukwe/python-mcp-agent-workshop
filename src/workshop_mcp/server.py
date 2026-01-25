@@ -16,7 +16,7 @@ from typing import Any, Dict, Optional
 from .keyword_search import KeywordSearchTool
 from .logging_context import CorrelationIdFilter, correlation_id_var, request_context
 from .performance_profiler import PerformanceChecker
-from .security import PathValidator, PathValidationError
+from .security import PathValidator, PathValidationError, SecurityValidationError
 
 # Configure logging with correlation ID support
 logging.basicConfig(
@@ -437,6 +437,12 @@ class WorkshopMCPServer:
                 request_id,
                 JsonRpcError(-32602, "Missing required argument"),
             )
+        except SecurityValidationError as exc:
+            logger.warning("Security validation error: %s", exc)
+            return self._error_response(
+                request_id,
+                JsonRpcError(-32602, str(exc)),
+            )
         except Exception as exc:
             logger.exception("Error executing keyword_search")
             return self._error_response(
@@ -561,6 +567,12 @@ class WorkshopMCPServer:
             return self._error_response(
                 request_id,
                 JsonRpcError(-32602, "Missing required argument"),
+            )
+        except SecurityValidationError as exc:
+            logger.warning("Security validation error: %s", exc)
+            return self._error_response(
+                request_id,
+                JsonRpcError(-32602, str(exc)),
             )
         except Exception as exc:
             logger.exception("Error executing performance_check")
