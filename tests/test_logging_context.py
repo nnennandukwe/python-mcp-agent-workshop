@@ -107,10 +107,7 @@ class TestCorrelationIdFilter:
 
     def test_correlation_id_matches_context_inside_request(self):
         """Log record inside request context has matching correlation_id."""
-        from workshop_mcp.logging_context import (
-            CorrelationIdFilter,
-            request_context,
-        )
+        from workshop_mcp.logging_context import CorrelationIdFilter, request_context
 
         filter_instance = CorrelationIdFilter()
 
@@ -181,10 +178,7 @@ class TestIntegrationWithLogging:
 
     def test_filter_works_with_logger(self):
         """CorrelationIdFilter integrates with logging handlers."""
-        from workshop_mcp.logging_context import (
-            CorrelationIdFilter,
-            request_context,
-        )
+        from workshop_mcp.logging_context import CorrelationIdFilter, request_context
 
         # Create a test logger with our filter
         test_logger = logging.getLogger("test_logging_context_integration")
@@ -228,8 +222,9 @@ class TestModuleExports:
 
     def test_exports_correlation_id_var(self):
         """Module exports correlation_id_var."""
-        from workshop_mcp.logging_context import correlation_id_var
         from contextvars import ContextVar
+
+        from workshop_mcp.logging_context import correlation_id_var
 
         assert isinstance(correlation_id_var, ContextVar)
 
