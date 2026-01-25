@@ -86,7 +86,11 @@ def test_list_tools_response(server: WorkshopMCPServer) -> None:
     assert "keyword_search" in tool_names
 
 
-def test_call_tool_response(server: WorkshopMCPServer, tmp_path) -> None:
+def test_call_tool_response(tmp_path, monkeypatch) -> None:
+    # Set allowed roots BEFORE creating server
+    monkeypatch.setenv("MCP_ALLOWED_ROOTS", str(tmp_path))
+    server = WorkshopMCPServer()
+
     test_file = tmp_path / "sample.txt"
     test_file.write_text("alpha beta alpha", encoding="utf-8")
 
