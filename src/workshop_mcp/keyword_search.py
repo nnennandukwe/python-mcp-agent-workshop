@@ -393,12 +393,14 @@ class KeywordSearchTool:
         """
         if pattern is not None:
             # Use regex library with timeout for ReDoS protection
-            return len(pattern.findall(content, timeout=self.REGEX_TIMEOUT))
+            # Use finditer instead of findall to avoid memory exhaustion on large match counts
+            return sum(1 for _ in pattern.finditer(content, timeout=self.REGEX_TIMEOUT))
         if case_insensitive:
-            # Use regex.findall with IGNORECASE and timeout instead of content.lower()
+            # Use regex.finditer with IGNORECASE and timeout instead of content.lower()
             # to avoid creating a full lowercase copy of large files
-            return len(
-                regex.findall(
+            return sum(
+                1
+                for _ in regex.finditer(
                     regex.escape(keyword),
                     content,
                     regex.IGNORECASE,
