@@ -111,8 +111,10 @@ async def bad_async():
             assert "description" in issue
             assert "suggestion" in issue
 
-    def test_performance_check_with_file_path(self, tmp_path):
+    def test_performance_check_with_file_path(self, tmp_path, monkeypatch):
         """Test performance check with file path."""
+        # Allow tmp_path for path validation
+        monkeypatch.setenv("MCP_ALLOWED_ROOTS", str(tmp_path))
         server = WorkshopMCPServer()
 
         # Create a temporary Python file
@@ -262,12 +264,11 @@ def bad_syntax(
     def test_performance_check_invalid_argument_types(self):
         """Test error when arguments have wrong types.
 
-        Note: Type validation is expected to be handled by JSON-RPC schema
-        validation. Invalid types will fail in the underlying code.
+        Type validation happens in the server before path validation.
         """
         server = WorkshopMCPServer()
 
-        # Test with file_path as non-string - will fail in PerformanceChecker
+        # Test with file_path as non-string - caught by explicit type check
         request = {
             "jsonrpc": "2.0",
             "id": 8,
@@ -285,14 +286,17 @@ def bad_syntax(
         assert response["jsonrpc"] == "2.0"
         assert response["id"] == 8
         assert "error" in response
-        # Error will be raised from underlying code, not explicit type check
+        assert response["error"]["code"] == -32602
+        assert "file_path must be a string" in response["error"]["message"]
 
 
 class TestMCPServerFraming:
     """Test MCP server framing and message handling."""
 
-    def test_serve_once_with_performance_check(self, tmp_path):
+    def test_serve_once_with_performance_check(self, tmp_path, monkeypatch):
         """Test serve_once with a performance check request."""
+        # Allow tmp_path for path validation
+        monkeypatch.setenv("MCP_ALLOWED_ROOTS", str(tmp_path))
         server = WorkshopMCPServer()
 
         # Create a test file

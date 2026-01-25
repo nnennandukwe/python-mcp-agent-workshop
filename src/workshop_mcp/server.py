@@ -15,6 +15,7 @@ from typing import Any, Dict, Optional
 
 from .keyword_search import KeywordSearchTool
 from .performance_profiler import PerformanceChecker
+from .security import PathValidator, PathValidationError
 
 # Configure logging
 logging.basicConfig(
@@ -50,6 +51,7 @@ class WorkshopMCPServer:
     def __init__(self) -> None:
         """Initialize the MCP server with keyword search tool."""
         self.keyword_search_tool = KeywordSearchTool()
+        self.path_validator = PathValidator()
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
 
@@ -377,6 +379,15 @@ class WorkshopMCPServer:
                 JsonRpcError(-32602, "exclude_patterns must be a list of strings"),
             )
 
+        # Validate paths before tool execution
+        try:
+            self.path_validator.validate_multiple(root_paths)
+        except PathValidationError as e:
+            return self._error_response(
+                request_id,
+                JsonRpcError(-32602, str(e)),
+            )
+
         try:
             logger.info(
                 "Executing keyword search for '%s' in %d paths",
@@ -442,6 +453,23 @@ class WorkshopMCPServer:
                     -32602, "Provide only one of file_path or source_code"
                 ),
             )
+
+        # Type check file_path before path validation
+        if file_path is not None and not isinstance(file_path, str):
+            return self._error_response(
+                request_id,
+                JsonRpcError(-32602, "file_path must be a string"),
+            )
+
+        # Validate file_path before tool execution
+        if file_path:
+            try:
+                self.path_validator.validate_exists(file_path, must_be_file=True)
+            except PathValidationError as e:
+                return self._error_response(
+                    request_id,
+                    JsonRpcError(-32602, str(e)),
+                )
 
         try:
             if file_path:
