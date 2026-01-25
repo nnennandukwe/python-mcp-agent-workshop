@@ -25,9 +25,10 @@ logging.basicConfig(
     handlers=[logging.StreamHandler(sys.stderr)],
 )
 
-# Add correlation ID filter to all handlers
+# Add correlation ID filter to all handlers (idempotent for module reloads)
 for handler in logging.root.handlers:
-    handler.addFilter(CorrelationIdFilter())
+    if not any(isinstance(f, CorrelationIdFilter) for f in handler.filters):
+        handler.addFilter(CorrelationIdFilter())
 
 logger = logging.getLogger(__name__)
 
