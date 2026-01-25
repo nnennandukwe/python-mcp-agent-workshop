@@ -72,7 +72,7 @@ Plans:
   2. RegexAbortError returns -32602 with "Pattern timed out on too many files"
   3. All SecurityValidationError subclasses are caught before generic Exception handler
   4. Integration tests verify correct error messages reach clients
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
 - [ ] 04-01-PLAN.md — Add SecurityValidationError handler to server.py with integration tests
@@ -87,7 +87,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 | 1. Path Validation | 2/2 | Complete | 2026-01-25 |
 | 2. ReDoS Protection | 2/2 | Complete | 2026-01-25 |
 | 3. Error Sanitization | 2/2 | Complete | 2026-01-25 |
-| 4. SecurityValidationError Handler | 0/TBD | Gap Closure | - |
+| 4. SecurityValidationError Handler | 0/1 | Gap Closure | - |
 
 ---
 *Roadmap created: 2026-01-25*
@@ -95,4 +95,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 *Phase 2 planned: 2026-01-25*
 *Phase 3 planned: 2026-01-25*
 *Phase 4 added: 2026-01-25 (gap closure from audit)*
+*Phase 4 planned: 2026-01-25*
 *Coverage: 9/9 v1 requirements mapped*
