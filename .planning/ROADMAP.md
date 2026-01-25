@@ -13,6 +13,7 @@ This security hardening milestone eliminates Qodo code review warnings by implem
 - [x] **Phase 1: Path Validation** - Prevent arbitrary file read via path traversal
 - [x] **Phase 2: ReDoS Protection** - Prevent regex denial-of-service attacks
 - [x] **Phase 3: Error Sanitization** - Prevent information disclosure via error messages
+- [ ] **Phase 4: SecurityValidationError Handler** - Fix cross-phase integration gap (GAP CLOSURE)
 
 ## Phase Details
 
@@ -61,20 +62,37 @@ Plans:
 - [x] 03-01-PLAN.md — Logging context module with TDD (correlation IDs, CorrelationIdFilter, context manager)
 - [x] 03-02-PLAN.md — Server error sanitization (fix 6 leak points, configure logging, wrap execution in context)
 
+### Phase 4: SecurityValidationError Handler
+**Goal**: All SecurityValidationError subclasses pass through safe messages (not "Internal error")
+**Depends on**: Phase 2, Phase 3 (uses security exceptions and error sanitization)
+**Requirements**: None (integration gap closure)
+**Gap Closure**: Closes audit gaps from v1-MILESTONE-AUDIT.md
+**Success Criteria** (what must be TRUE):
+  1. RegexValidationError returns -32602 with "Pattern rejected: nested quantifiers detected"
+  2. RegexAbortError returns -32602 with "Pattern timed out on too many files"
+  3. All SecurityValidationError subclasses are caught before generic Exception handler
+  4. Integration tests verify correct error messages reach clients
+**Plans**: TBD
+
+Plans:
+- [ ] 04-01-PLAN.md — Add SecurityValidationError handler to server.py with integration tests
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 -> 2 -> 3
+Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Path Validation | 2/2 | Complete | 2026-01-25 |
 | 2. ReDoS Protection | 2/2 | Complete | 2026-01-25 |
 | 3. Error Sanitization | 2/2 | Complete | 2026-01-25 |
+| 4. SecurityValidationError Handler | 0/TBD | Gap Closure | - |
 
 ---
 *Roadmap created: 2026-01-25*
 *Phase 1 planned: 2026-01-25*
 *Phase 2 planned: 2026-01-25*
 *Phase 3 planned: 2026-01-25*
+*Phase 4 added: 2026-01-25 (gap closure from audit)*
 *Coverage: 9/9 v1 requirements mapped*
