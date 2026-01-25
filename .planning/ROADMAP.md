@@ -40,10 +40,11 @@ Plans:
   2. Patterns exceeding length limit are rejected before execution
   3. Known ReDoS patterns (nested quantifiers, catastrophic backtracking) are blocked
   4. Blocked/timed-out patterns return a generic error (no pattern details leaked)
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 02-01: TBD
+- [ ] 02-01-PLAN.md — RegexValidator security module with TDD (exceptions, validation, tests)
+- [ ] 02-02-PLAN.md — keyword_search integration (regex library, timeouts, abort threshold)
 
 ### Phase 3: Error Sanitization
 **Goal**: Internal implementation details are never exposed to clients
@@ -67,10 +68,11 @@ Phases execute in numeric order: 1 -> 2 -> 3
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Path Validation | 2/2 | Complete | 2026-01-25 |
-| 2. ReDoS Protection | 0/TBD | Not started | - |
+| 2. ReDoS Protection | 0/2 | Planned | - |
 | 3. Error Sanitization | 0/TBD | Not started | - |
 
 ---
 *Roadmap created: 2026-01-25*
 *Phase 1 planned: 2026-01-25*
+*Phase 2 planned: 2026-01-25*
 *Coverage: 9/9 v1 requirements mapped*
