@@ -52,21 +52,21 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PATH-01 | TBD | Pending |
-| PATH-02 | TBD | Pending |
-| PATH-03 | TBD | Pending |
-| REDOS-01 | TBD | Pending |
-| REDOS-02 | TBD | Pending |
-| REDOS-03 | TBD | Pending |
-| ERR-01 | TBD | Pending |
-| ERR-02 | TBD | Pending |
-| ERR-03 | TBD | Pending |
+| PATH-01 | Phase 1 | Pending |
+| PATH-02 | Phase 1 | Pending |
+| PATH-03 | Phase 1 | Pending |
+| REDOS-01 | Phase 2 | Pending |
+| REDOS-02 | Phase 2 | Pending |
+| REDOS-03 | Phase 2 | Pending |
+| ERR-01 | Phase 3 | Pending |
+| ERR-02 | Phase 3 | Pending |
+| ERR-03 | Phase 3 | Pending |
 
 **Coverage:**
 - v1 requirements: 9 total
-- Mapped to phases: 0
-- Unmapped: 9 ⚠️
+- Mapped to phases: 9
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-01-25*
-*Last updated: 2026-01-25 after initial definition*
+*Last updated: 2026-01-25 after roadmap creation*
