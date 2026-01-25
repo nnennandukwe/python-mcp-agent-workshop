@@ -25,10 +25,11 @@ This security hardening milestone eliminates Qodo code review warnings by implem
   2. File operations reject absolute paths outside the allowed root
   3. Allowed root directory is configurable via environment variable
   4. Rejected paths return a generic error (no path details leaked)
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 01-01: TBD
+- [ ] 01-01-PLAN.md — PathValidator security module with TDD (exceptions, validation, tests)
+- [ ] 01-02-PLAN.md — Server integration (wire PathValidator into MCP server)
 
 ### Phase 2: ReDoS Protection
 **Goal**: Regex operations cannot cause denial-of-service
@@ -65,10 +66,11 @@ Phases execute in numeric order: 1 -> 2 -> 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Path Validation | 0/TBD | Not started | - |
+| 1. Path Validation | 0/2 | Planned | - |
 | 2. ReDoS Protection | 0/TBD | Not started | - |
 | 3. Error Sanitization | 0/TBD | Not started | - |
 
 ---
 *Roadmap created: 2026-01-25*
+*Phase 1 planned: 2026-01-25*
 *Coverage: 9/9 v1 requirements mapped*
