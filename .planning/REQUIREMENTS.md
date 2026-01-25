@@ -21,9 +21,9 @@ Requirements for this security hardening milestone. Each maps to roadmap phases.
 
 ### Error Sanitization
 
-- [ ] **ERR-01**: Generic error messages to clients (no exception type/message leaked)
-- [ ] **ERR-02**: Log full error details internally with correlation IDs for debugging
-- [ ] **ERR-03**: Security-specific exception hierarchy (PathValidationError, RegexValidationError, etc.)
+- [x] **ERR-01**: Generic error messages to clients (no exception type/message leaked)
+- [x] **ERR-02**: Log full error details internally with correlation IDs for debugging
+- [x] **ERR-03**: Security-specific exception hierarchy (PathValidationError, RegexValidationError, etc.)
 
 ## v2 Requirements
 
@@ -58,9 +58,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | REDOS-01 | Phase 2 | Complete |
 | REDOS-02 | Phase 2 | Complete |
 | REDOS-03 | Phase 2 | Complete |
-| ERR-01 | Phase 3 | Pending |
-| ERR-02 | Phase 3 | Pending |
-| ERR-03 | Phase 3 | Pending |
+| ERR-01 | Phase 3 | Complete |
+| ERR-02 | Phase 3 | Complete |
+| ERR-03 | Phase 3 | Complete |
 
 **Coverage:**
 - v1 requirements: 9 total
@@ -69,4 +69,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-01-25*
-*Last updated: 2026-01-25 after roadmap creation*
+*Last updated: 2026-01-25 after Phase 3 completion*
