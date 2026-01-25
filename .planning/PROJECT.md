@@ -1,12 +1,20 @@
-# Security Hardening
+# Python MCP Agent Workshop
 
 ## What This Is
 
-Security improvements to the Python MCP Agent Workshop codebase, targeting the critical issues consistently flagged by Qodo code review across recent PRs. This is a focused cleanup milestone to establish secure-by-default patterns.
+An educational MCP server demonstrating AI agent development using the Model Context Protocol. Features keyword search and performance profiler tools with comprehensive security hardening (path validation, ReDoS protection, error sanitization).
 
 ## Core Value
 
-Eliminate security warnings from Qodo reviews by implementing proper input validation, safe error handling, and regex protection.
+Demonstrate how to build secure, production-ready MCP tools from scratch.
+
+## Current State
+
+**v1.0 Security Hardening** — Shipped 2026-01-25
+
+- 2,762 lines of Python
+- 270 tests passing
+- All Qodo security warnings resolved
 
 ## Requirements
 
@@ -15,48 +23,40 @@ Eliminate security warnings from Qodo reviews by implementing proper input valid
 - ✓ MCP server with JSON-RPC 2.0 protocol — existing
 - ✓ Performance profiler with Astroid AST analysis — existing
 - ✓ Keyword search with async file traversal — existing
-- ✓ 102 passing tests with comprehensive coverage — existing
+- ✓ Path validation for `file_path` parameters — v1.0
+- ✓ ReDoS protection with timeout/safeguards — v1.0
+- ✓ Sanitized error responses — v1.0
 
 ### Active
 
-- [ ] Path validation for `file_path` parameters (prevent arbitrary file read)
-- [ ] ReDoS protection with timeout/safeguards for user-supplied regex
-- [ ] Sanitized error responses (no internal exception details leaked)
+(None — run `/gsd:new-milestone` to define next milestone)
 
 ### Out of Scope
 
-- Full audit trail logging — trusted local caller only, adds complexity beyond current need
-- Security test suite expansion — focus on fixes first, tests follow naturally
-- Dependency vulnerability scanning — separate CI concern, not code change
+- Full audit trail logging — trusted local caller only
+- Authentication/authorization — trusted local caller only
+- Rate limiting — not needed for local-only threat model
+- Full sandboxing — overkill for educational workshop
 
 ## Context
 
-**Trigger:** Qodo code review bot consistently flags security compliance issues across PRs 17-22:
-- PR 17: Regex DoS risk in keyword search
-- PR 19: Arbitrary file read, sensitive data exposure in code snippets
-- PR 20: Arbitrary file read, internal error details exposed, incomplete audit logging
-- PR 22: Local file disclosure, missing type validation
+**v1.0 delivered:** Defense-in-depth security controls across 4 phases:
+1. Path traversal prevention (PathValidator with MCP_ALLOWED_ROOTS)
+2. ReDoS protection (regex library timeouts, pattern blocklists)
+3. Error sanitization (generic messages, correlation IDs)
+4. Security exception integration (safe message passthrough)
 
-**Threat model:** Trusted local callers only (Claude Code, Cursor, etc.). Security hardening is defense-in-depth and establishes good patterns.
-
-**Codebase analysis:** `.planning/codebase/CONCERNS.md` already identified these exact issues:
-- "Insufficient Regex ReDoS Protection" (lines 134-150)
-- "No Input Validation on Paths" (lines 316-324)
-- "Incomplete Error Messages" (lines 271-288)
-
-## Constraints
-
-- **Tech stack**: Python 3.10+, existing Astroid/aiofiles dependencies
-- **Scope**: Fix Qodo-flagged issues only, no feature additions
-- **Testing**: Maintain 102+ passing tests, add targeted security tests
+**Tech stack:** Python 3.10+, Astroid, aiofiles, regex library
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Path allowlist vs. sandbox | Allowlist is simpler for trusted local use case | — Pending |
-| Regex timeout mechanism | signal-based vs. library-based | — Pending |
-| Error sanitization approach | Generic message vs. error codes | — Pending |
+| Path allowlist (MCP_ALLOWED_ROOTS) | Simpler than sandbox for trusted local use | ✓ Good |
+| regex library with timeout | Library-based timeout is cross-platform | ✓ Good |
+| Generic error messages | Prevents information leakage | ✓ Good |
+| SecurityValidationError hierarchy | Type-safe error handling | ✓ Good |
+| Correlation ID logging | Enables debugging without leaking details | ✓ Good |
 
 ---
-*Last updated: 2026-01-25 after initialization*
+*Last updated: 2026-01-25 after v1.0 milestone*
