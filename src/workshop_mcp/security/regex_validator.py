@@ -19,7 +19,7 @@ Usage:
         return error_response(str(e))
 """
 
-import re
+import regex
 from typing import Pattern
 
 from .exceptions import RegexValidationError
@@ -33,7 +33,7 @@ MAX_PATTERN_LENGTH: int = 500
 _REDOS_PATTERNS: list[Pattern[str]] = [
     # Nested quantifiers: group with inner quantifier + outer quantifier
     # Matches: (a+)+, (.*)+, (.+)*, (a*)*, (?:a+)+, etc.
-    re.compile(r"\([^)]*[+*][^)]*\)[+*]"),
+    regex.compile(r"\([^)]*[+*][^)]*\)[+*]"),
 ]
 
 
@@ -90,8 +90,8 @@ def validate_pattern(pattern: str, use_regex: bool) -> None:
     if _is_redos_pattern(pattern):
         raise RegexValidationError("Pattern rejected: nested quantifiers detected")
 
-    # Validate regex syntax
+    # Validate regex syntax using regex library (same as execution engine)
     try:
-        re.compile(pattern)
-    except re.error:
+        regex.compile(pattern)
+    except regex.error:
         raise RegexValidationError("Invalid regex syntax")
