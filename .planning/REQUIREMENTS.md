@@ -15,9 +15,9 @@ Requirements for this security hardening milestone. Each maps to roadmap phases.
 
 ### ReDoS Protection
 
-- [ ] **REDOS-01**: Timeout on regex operations using `regex` library as drop-in replacement for `re`
-- [ ] **REDOS-02**: Input length limits on regex patterns and search content
-- [ ] **REDOS-03**: Enhanced pattern blocklist beyond current checks (catch .*.*  and other patterns)
+- [x] **REDOS-01**: Timeout on regex operations using `regex` library as drop-in replacement for `re`
+- [x] **REDOS-02**: Input length limits on regex patterns and search content
+- [x] **REDOS-03**: Enhanced pattern blocklist beyond current checks (catch .*.*  and other patterns)
 
 ### Error Sanitization
 
@@ -55,9 +55,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PATH-01 | Phase 1 | Complete |
 | PATH-02 | Phase 1 | Complete |
 | PATH-03 | Phase 1 | Complete |
-| REDOS-01 | Phase 2 | Pending |
-| REDOS-02 | Phase 2 | Pending |
-| REDOS-03 | Phase 2 | Pending |
+| REDOS-01 | Phase 2 | Complete |
+| REDOS-02 | Phase 2 | Complete |
+| REDOS-03 | Phase 2 | Complete |
 | ERR-01 | Phase 3 | Pending |
 | ERR-02 | Phase 3 | Pending |
 | ERR-03 | Phase 3 | Pending |
