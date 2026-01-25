@@ -14,15 +14,20 @@ from dataclasses import dataclass, asdict
 from typing import Any, Dict, Optional
 
 from .keyword_search import KeywordSearchTool
+from .logging_context import CorrelationIdFilter, correlation_id_var, request_context
 from .performance_profiler import PerformanceChecker
 from .security import PathValidator, PathValidationError
 
-# Configure logging
+# Configure logging with correlation ID support
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    format="%(asctime)s - %(name)s - %(levelname)s - [%(correlation_id)s] - %(message)s",
     handlers=[logging.StreamHandler(sys.stderr)],
 )
+
+# Add correlation ID filter to all handlers
+for handler in logging.root.handlers:
+    handler.addFilter(CorrelationIdFilter())
 
 logger = logging.getLogger(__name__)
 
