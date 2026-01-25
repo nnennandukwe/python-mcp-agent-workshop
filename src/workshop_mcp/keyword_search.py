@@ -8,12 +8,18 @@ supporting multiple text file formats with comprehensive error handling and stat
 import asyncio
 import logging
 import os
-import re
+import regex
 from fnmatch import fnmatch
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Pattern, Set
+from typing import Any, Dict, List, Optional, Set
 
 import aiofiles
+
+from workshop_mcp.security import (
+    RegexAbortError,
+    RegexValidationError,
+    validate_pattern,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +59,9 @@ class KeywordSearchTool:
         ".scala",
     }
 
+    # Timeout for regex operations (per file, in seconds)
+    REGEX_TIMEOUT: float = 1.0
+
     def __init__(self) -> None:
         """Initialize the KeywordSearchTool."""
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
@@ -85,6 +94,8 @@ class KeywordSearchTool:
         Raises:
             ValueError: If keyword is empty or root_paths is empty
             FileNotFoundError: If any root path doesn't exist
+            RegexValidationError: If regex pattern is invalid or potentially dangerous
+            RegexAbortError: If pattern times out on >50% of files
         """
         if not keyword.strip():
             raise ValueError("Keyword cannot be empty")
@@ -101,6 +112,9 @@ class KeywordSearchTool:
             isinstance(pattern, str) for pattern in exclude_patterns
         ):
             raise ValueError("exclude_patterns must be a list of strings")
+
+        # Validate pattern before any file search (ReDoS protection)
+        validate_pattern(keyword, use_regex)
 
         pattern = self._build_pattern(keyword, case_insensitive, use_regex)
 
@@ -125,6 +139,9 @@ class KeywordSearchTool:
             },
         }
 
+        # Track skipped files due to timeout
+        skipped_files: List[str] = []
+
         # Search each root path
         search_tasks = []
         for root_path_str in root_paths:
@@ -144,6 +161,7 @@ class KeywordSearchTool:
                     include_patterns,
                     exclude_patterns,
                     case_insensitive,
+                    skipped_files,
                 )
             )
 
@@ -167,6 +185,18 @@ class KeywordSearchTool:
         # Calculate final summary statistics
         self._calculate_summary(result)
 
+        # Check abort threshold: if >50% files timed out, raise RegexAbortError
+        total_files = result["summary"]["total_files_searched"] + len(skipped_files)
+        if total_files > 0 and len(skipped_files) / total_files > 0.5:
+            raise RegexAbortError("Pattern timed out on too many files")
+
+        # Add metadata for skipped files if any
+        if skipped_files:
+            result["metadata"] = {
+                "skipped_files": skipped_files,
+                "skip_reason": "regex_timeout",
+            }
+
         self.logger.info(
             f"Search completed: {result['summary']['total_files_searched']} files searched, "
             f"{result['summary']['total_files_with_matches']} files with matches, "
@@ -179,11 +209,12 @@ class KeywordSearchTool:
         self,
         root_path: Path,
         keyword: str,
-        pattern: Optional[Pattern[str]],
+        pattern: Optional[regex.Pattern[str]],
         result: Dict[str, Any],
         include_patterns: Optional[List[str]],
         exclude_patterns: Optional[List[str]],
         case_insensitive: bool,
+        skipped_files: List[str],
     ) -> None:
         """
         Recursively search a directory for keyword occurrences.
@@ -196,6 +227,7 @@ class KeywordSearchTool:
             include_patterns: Optional list of glob patterns to include files
             exclude_patterns: Optional list of glob patterns to exclude files
             case_insensitive: Whether to perform a case-insensitive search
+            skipped_files: List to track files skipped due to timeout
         """
         try:
             # Use os.walk for efficient directory traversal with pruning
@@ -222,7 +254,7 @@ class KeywordSearchTool:
 
                     search_tasks.append(
                         self._search_file(
-                            file_path, keyword, pattern, result, case_insensitive
+                            file_path, keyword, pattern, result, case_insensitive, skipped_files
                         )
                     )
 
@@ -245,9 +277,10 @@ class KeywordSearchTool:
         self,
         file_path: Path,
         keyword: str,
-        pattern: Optional[Pattern[str]],
+        pattern: Optional[regex.Pattern[str]],
         result: Dict[str, Any],
         case_insensitive: bool,
+        skipped_files: List[str],
     ) -> None:
         """
         Search a single file for keyword occurrences.
@@ -258,6 +291,7 @@ class KeywordSearchTool:
             pattern: Compiled regex pattern when use_regex is enabled
             result: Shared result dictionary to update
             case_insensitive: Whether to perform a case-insensitive search
+            skipped_files: List to track files skipped due to timeout
         """
         file_path_str = str(file_path)
 
@@ -267,9 +301,17 @@ class KeywordSearchTool:
             ) as file:
                 content = await file.read()
 
-                occurrences = self._count_occurrences(
-                    content, keyword, pattern, case_insensitive
-                )
+                try:
+                    occurrences = self._count_occurrences(
+                        content, keyword, pattern, case_insensitive
+                    )
+                except TimeoutError:
+                    # Regex operation timed out - skip this file and continue
+                    self.logger.warning(
+                        f"Regex timeout on file: {file_path_str}"
+                    )
+                    skipped_files.append(file_path_str)
+                    return
 
                 # Update result
                 try:
@@ -317,41 +359,54 @@ class KeywordSearchTool:
 
     def _build_pattern(
         self, keyword: str, case_insensitive: bool, use_regex: bool
-    ) -> Optional[Pattern[str]]:
+    ) -> Optional[regex.Pattern[str]]:
         if not use_regex:
             return None
 
-        # Basic ReDoS protection: reject patterns with nested quantifiers
-        # that could cause catastrophic backtracking (e.g., (a+)+, (.*)*)
-        dangerous_patterns = [
-            r'\([^)]*[+*][^)]*\)[+*]',  # Nested quantifiers like (a+)+
-            r'\([^)]*\|[^)]*\)[+*]',     # Alternation with quantifier like (a|b)+
-        ]
-        for dangerous in dangerous_patterns:
-            if re.search(dangerous, keyword):
-                raise ValueError(
-                    "Regex pattern rejected: potentially unsafe pattern detected"
-                )
-
-        flags = re.IGNORECASE if case_insensitive else 0
+        flags = regex.IGNORECASE if case_insensitive else 0
         try:
-            return re.compile(keyword, flags=flags)
-        except re.error:
+            return regex.compile(keyword, flags=flags)
+        except regex.error:
             raise ValueError("Invalid regex pattern")
 
     def _count_occurrences(
         self,
         content: str,
         keyword: str,
-        pattern: Optional[Pattern[str]],
+        pattern: Optional[regex.Pattern[str]],
         case_insensitive: bool,
     ) -> int:
+        """
+        Count occurrences of keyword in content.
+
+        Args:
+            content: File content to search
+            keyword: The keyword to search for
+            pattern: Compiled regex pattern when use_regex is enabled
+            case_insensitive: Whether to perform a case-insensitive search
+
+        Returns:
+            Number of occurrences found
+
+        Raises:
+            TimeoutError: If regex operation times out (1 second per file)
+        """
         if pattern is not None:
-            return len(pattern.findall(content))
+            # Use regex library with timeout for ReDoS protection
+            # Use finditer instead of findall to avoid memory exhaustion on large match counts
+            return sum(1 for _ in pattern.finditer(content, timeout=self.REGEX_TIMEOUT))
         if case_insensitive:
-            # Use re.findall with IGNORECASE instead of content.lower()
+            # Use regex.finditer with IGNORECASE and timeout instead of content.lower()
             # to avoid creating a full lowercase copy of large files
-            return len(re.findall(re.escape(keyword), content, re.IGNORECASE))
+            return sum(
+                1
+                for _ in regex.finditer(
+                    regex.escape(keyword),
+                    content,
+                    regex.IGNORECASE,
+                    timeout=self.REGEX_TIMEOUT,
+                )
+            )
         return content.count(keyword)
 
     def _should_exclude_dir(

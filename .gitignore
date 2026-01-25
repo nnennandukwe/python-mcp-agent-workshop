@@ -192,6 +192,9 @@ Desktop.ini
 mcp_logs/
 .mcp/
 
+# Claude Code local config
+.claude/
+
 # Workshop specific
 workshop_temp/
 test_output/.env

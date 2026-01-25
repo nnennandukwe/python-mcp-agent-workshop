@@ -111,8 +111,10 @@ async def bad_async():
             assert "description" in issue
             assert "suggestion" in issue
 
-    def test_performance_check_with_file_path(self, tmp_path):
+    def test_performance_check_with_file_path(self, tmp_path, monkeypatch):
         """Test performance check with file path."""
+        # Allow tmp_path for path validation
+        monkeypatch.setenv("MCP_ALLOWED_ROOTS", str(tmp_path))
         server = WorkshopMCPServer()
 
         # Create a temporary Python file
@@ -262,12 +264,11 @@ def bad_syntax(
     def test_performance_check_invalid_argument_types(self):
         """Test error when arguments have wrong types.
 
-        Note: Type validation is expected to be handled by JSON-RPC schema
-        validation. Invalid types will fail in the underlying code.
+        Type validation happens in the server before path validation.
         """
         server = WorkshopMCPServer()
 
-        # Test with file_path as non-string - will fail in PerformanceChecker
+        # Test with file_path as non-string - caught by explicit type check
         request = {
             "jsonrpc": "2.0",
             "id": 8,
@@ -285,14 +286,17 @@ def bad_syntax(
         assert response["jsonrpc"] == "2.0"
         assert response["id"] == 8
         assert "error" in response
-        # Error will be raised from underlying code, not explicit type check
+        assert response["error"]["code"] == -32602
+        assert "file_path must be a string" in response["error"]["message"]
 
 
 class TestMCPServerFraming:
     """Test MCP server framing and message handling."""
 
-    def test_serve_once_with_performance_check(self, tmp_path):
+    def test_serve_once_with_performance_check(self, tmp_path, monkeypatch):
         """Test serve_once with a performance check request."""
+        # Allow tmp_path for path validation
+        monkeypatch.setenv("MCP_ALLOWED_ROOTS", str(tmp_path))
         server = WorkshopMCPServer()
 
         # Create a test file
@@ -348,3 +352,205 @@ class TestMCPServerFraming:
             issue["category"] == "blocking_io_in_async"
             for issue in result_data["issues"]
         )
+
+
+class TestPathValidationIntegration:
+    """Integration tests for path validation in MCP server.
+
+    These tests verify that path traversal attacks are blocked at the
+    MCP server level with appropriate JSON-RPC error responses.
+    """
+
+    def test_keyword_search_rejects_traversal(self, tmp_path, monkeypatch):
+        """Test that keyword_search rejects paths with traversal sequences."""
+        # Set up allowed root that doesn't include traversal target
+        monkeypatch.setenv("MCP_ALLOWED_ROOTS", str(tmp_path))
+        server = WorkshopMCPServer()
+
+        # Attempt to escape via traversal
+        request = {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "call_tool",
+            "params": {
+                "name": "keyword_search",
+                "arguments": {
+                    "keyword": "test",
+                    "root_paths": [str(tmp_path / ".." / ".." / "etc")],
+                },
+            },
+        }
+
+        response = server._handle_request(request)
+
+        # Should return error, not result
+        assert "error" in response
+        assert response["error"]["code"] == -32602
+        # Error message should be generic (no path details leaked)
+        assert "outside allowed directories" in response["error"]["message"]
+        # Should NOT contain the actual path
+        assert "/etc" not in response["error"]["message"]
+
+    def test_keyword_search_rejects_absolute_path(self, tmp_path, monkeypatch):
+        """Test that keyword_search rejects absolute paths outside allowed roots."""
+        # Set allowed root to tmp_path
+        monkeypatch.setenv("MCP_ALLOWED_ROOTS", str(tmp_path))
+        server = WorkshopMCPServer()
+
+        # Attempt to access system directory
+        request = {
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "call_tool",
+            "params": {
+                "name": "keyword_search",
+                "arguments": {
+                    "keyword": "passwd",
+                    "root_paths": ["/etc"],
+                },
+            },
+        }
+
+        response = server._handle_request(request)
+
+        assert "error" in response
+        assert response["error"]["code"] == -32602
+        assert "outside allowed directories" in response["error"]["message"]
+
+    def test_performance_check_rejects_traversal(self, tmp_path, monkeypatch):
+        """Test that performance_check rejects file paths with traversal."""
+        monkeypatch.setenv("MCP_ALLOWED_ROOTS", str(tmp_path))
+        server = WorkshopMCPServer()
+
+        request = {
+            "jsonrpc": "2.0",
+            "id": 3,
+            "method": "call_tool",
+            "params": {
+                "name": "performance_check",
+                "arguments": {
+                    "file_path": str(tmp_path / ".." / ".." / "etc" / "passwd"),
+                },
+            },
+        }
+
+        response = server._handle_request(request)
+
+        assert "error" in response
+        assert response["error"]["code"] == -32602
+        # Error message is generic - either traversal block or file not found
+        assert "error" in response
+        # Should NOT expose actual path in error
+        assert "/etc/passwd" not in str(response["error"])
+
+    def test_performance_check_rejects_absolute_path(self, tmp_path, monkeypatch):
+        """Test that performance_check rejects absolute paths outside allowed roots."""
+        monkeypatch.setenv("MCP_ALLOWED_ROOTS", str(tmp_path))
+        server = WorkshopMCPServer()
+
+        request = {
+            "jsonrpc": "2.0",
+            "id": 4,
+            "method": "call_tool",
+            "params": {
+                "name": "performance_check",
+                "arguments": {
+                    "file_path": "/etc/passwd",
+                },
+            },
+        }
+
+        response = server._handle_request(request)
+
+        assert "error" in response
+        assert response["error"]["code"] == -32602
+        assert "outside allowed directories" in response["error"]["message"]
+
+    def test_keyword_search_accepts_valid_path(self, tmp_path, monkeypatch):
+        """Test that keyword_search accepts paths within allowed roots."""
+        monkeypatch.setenv("MCP_ALLOWED_ROOTS", str(tmp_path))
+        server = WorkshopMCPServer()
+
+        # Create a test file in allowed directory
+        test_file = tmp_path / "test.py"
+        test_file.write_text("hello world")
+
+        request = {
+            "jsonrpc": "2.0",
+            "id": 5,
+            "method": "call_tool",
+            "params": {
+                "name": "keyword_search",
+                "arguments": {
+                    "keyword": "hello",
+                    "root_paths": [str(tmp_path)],
+                },
+            },
+        }
+
+        response = server._handle_request(request)
+
+        # Should return result, not error
+        assert "result" in response
+        assert "error" not in response
+
+    def test_performance_check_accepts_valid_file(self, tmp_path, monkeypatch):
+        """Test that performance_check accepts files within allowed roots."""
+        monkeypatch.setenv("MCP_ALLOWED_ROOTS", str(tmp_path))
+        server = WorkshopMCPServer()
+
+        # Create a test Python file in allowed directory
+        test_file = tmp_path / "test.py"
+        test_file.write_text("def hello(): return 'world'")
+
+        request = {
+            "jsonrpc": "2.0",
+            "id": 6,
+            "method": "call_tool",
+            "params": {
+                "name": "performance_check",
+                "arguments": {
+                    "file_path": str(test_file),
+                },
+            },
+        }
+
+        response = server._handle_request(request)
+
+        # Should return result, not error
+        assert "result" in response
+        assert "error" not in response
+
+    def test_error_message_is_generic(self, tmp_path, monkeypatch):
+        """Test that error messages don't leak path information."""
+        monkeypatch.setenv("MCP_ALLOWED_ROOTS", str(tmp_path))
+        server = WorkshopMCPServer()
+
+        # Try various traversal attempts
+        malicious_paths = [
+            "/etc/passwd",
+            "../../../etc/passwd",
+            str(tmp_path / ".." / ".." / ".." / "etc" / "passwd"),
+            "//etc/passwd",
+        ]
+
+        for path in malicious_paths:
+            request = {
+                "jsonrpc": "2.0",
+                "id": 7,
+                "method": "call_tool",
+                "params": {
+                    "name": "performance_check",
+                    "arguments": {
+                        "file_path": path,
+                    },
+                },
+            }
+
+            response = server._handle_request(request)
+
+            assert "error" in response, f"Path {path} should be rejected"
+            error_msg = response["error"]["message"]
+            # Error message should be generic - no path details
+            assert "etc" not in error_msg.lower() or error_msg == "Path is outside allowed directories"
+            assert "passwd" not in error_msg.lower()

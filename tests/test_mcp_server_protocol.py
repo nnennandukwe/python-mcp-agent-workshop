@@ -5,6 +5,7 @@ These tests exercise the WorkshopMCPServer stdio framing, JSON-RPC
 request handling, and error responses without relying on the MCP SDK.
 """
 
+import asyncio
 import io
 import json
 from typing import Any, Dict, Optional
@@ -86,35 +87,43 @@ def test_list_tools_response(server: WorkshopMCPServer) -> None:
     assert "keyword_search" in tool_names
 
 
-def test_call_tool_response(server: WorkshopMCPServer, tmp_path) -> None:
-    test_file = tmp_path / "sample.txt"
-    test_file.write_text("alpha beta alpha", encoding="utf-8")
+def test_call_tool_response(tmp_path, monkeypatch) -> None:
+    # Set allowed roots BEFORE creating server
+    monkeypatch.setenv("MCP_ALLOWED_ROOTS", str(tmp_path))
+    server = WorkshopMCPServer()
 
-    message = _encode_message(
-        {
-            "jsonrpc": "2.0",
-            "id": "call-1",
-            "method": "call_tool",
-            "params": {
-                "name": "keyword_search",
-                "arguments": {
-                    "keyword": "alpha",
-                    "root_paths": [str(tmp_path)],
+    try:
+        test_file = tmp_path / "sample.txt"
+        test_file.write_text("alpha beta alpha", encoding="utf-8")
+
+        message = _encode_message(
+            {
+                "jsonrpc": "2.0",
+                "id": "call-1",
+                "method": "call_tool",
+                "params": {
+                    "name": "keyword_search",
+                    "arguments": {
+                        "keyword": "alpha",
+                        "root_paths": [str(tmp_path)],
+                    },
                 },
-            },
-        }
-    )
-    response = _run_server_harness(server, message)
+            }
+        )
+        response = _run_server_harness(server, message)
 
-    assert response is not None
-    assert response["id"] == "call-1"
-    content = response["result"]["content"][0]
-    assert content["type"] == "text"
+        assert response is not None
+        assert response["id"] == "call-1"
+        content = response["result"]["content"][0]
+        assert content["type"] == "text"
 
-    result_payload = json.loads(content["text"])
-    assert result_payload["keyword"] == "alpha"
-    assert str(tmp_path) in result_payload["root_paths"]
-    assert result_payload["summary"]["total_occurrences"] >= 2
+        result_payload = json.loads(content["text"])
+        assert result_payload["keyword"] == "alpha"
+        assert str(tmp_path) in result_payload["root_paths"]
+        assert result_payload["summary"]["total_occurrences"] >= 2
+    finally:
+        server.loop.close()
+        asyncio.set_event_loop(None)
 
 
 def test_invalid_method_returns_error(server: WorkshopMCPServer) -> None:

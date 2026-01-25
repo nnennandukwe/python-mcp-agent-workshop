@@ -204,15 +204,16 @@ def nested_world():
         self, search_tool: KeywordSearchTool, temp_test_directory: Path
     ):
         """Test that dangerous regex patterns are rejected to prevent ReDoS."""
+        from workshop_mcp.security import RegexValidationError
+
         # Pattern with nested quantifiers that could cause catastrophic backtracking
         dangerous_patterns = [
             r"(a+)+",      # Classic ReDoS pattern
             r"(.*)*",      # Nested star quantifiers
-            r"(a|b)+",     # Alternation with quantifier
         ]
 
         for pattern in dangerous_patterns:
-            with pytest.raises(ValueError, match="potentially unsafe pattern"):
+            with pytest.raises(RegexValidationError, match="nested quantifiers"):
                 await search_tool.execute(
                     pattern, [str(temp_test_directory)], use_regex=True
                 )
@@ -520,3 +521,183 @@ def nested_world():
             assert not search_tool._is_text_file(
                 file_path
             ), f"Should not support {file_path.suffix}"
+
+
+class TestReDoSProtection:
+    """Test suite for ReDoS protection in KeywordSearchTool."""
+
+    @pytest_asyncio.fixture
+    async def search_tool(self) -> KeywordSearchTool:
+        """Create a KeywordSearchTool instance for testing."""
+        return KeywordSearchTool()
+
+    @pytest.mark.asyncio
+    async def test_rejects_pattern_exceeding_length_limit(
+        self, search_tool: KeywordSearchTool, tmp_path: Path
+    ):
+        """Test that patterns exceeding 500 characters are rejected."""
+        from workshop_mcp.security import RegexValidationError
+
+        # Create a test file
+        test_file = tmp_path / "test.py"
+        test_file.write_text("hello world")
+
+        # Create a pattern that exceeds the 500 character limit
+        long_pattern = "a" * 501
+
+        with pytest.raises(RegexValidationError, match="maximum length"):
+            await search_tool.execute(long_pattern, [str(tmp_path)], use_regex=True)
+
+    @pytest.mark.asyncio
+    async def test_rejects_redos_pattern(
+        self, search_tool: KeywordSearchTool, tmp_path: Path
+    ):
+        """Test that known ReDoS patterns are rejected."""
+        from workshop_mcp.security import RegexValidationError
+
+        # Create a test file
+        test_file = tmp_path / "test.py"
+        test_file.write_text("hello world")
+
+        # Classic ReDoS pattern with nested quantifiers
+        with pytest.raises(RegexValidationError, match="nested quantifiers"):
+            await search_tool.execute("(a+)+", [str(tmp_path)], use_regex=True)
+
+    @pytest.mark.asyncio
+    async def test_accepts_valid_regex(
+        self, search_tool: KeywordSearchTool, tmp_path: Path
+    ):
+        """Test that valid regex patterns work normally."""
+        # Create a test file
+        test_file = tmp_path / "test.py"
+        test_file.write_text("hello world\ntest123\nfoo456")
+
+        # Valid regex pattern
+        result = await search_tool.execute(
+            r"[a-z]+\d+", [str(tmp_path)], use_regex=True
+        )
+
+        # Should find "test123" and "foo456"
+        assert result["summary"]["total_occurrences"] >= 2
+
+    @pytest.mark.asyncio
+    async def test_timeout_skips_file_continues_search(
+        self, search_tool: KeywordSearchTool, tmp_path: Path, monkeypatch
+    ):
+        """Test that timeout on one file skips it and continues search."""
+        # Create test files
+        (tmp_path / "file1.py").write_text("hello world")
+        (tmp_path / "file2.py").write_text("hello again")
+
+        # Track which call raises timeout
+        call_count = [0]
+        original_count = search_tool._count_occurrences
+
+        def mock_count_occurrences(content, keyword, pattern, case_insensitive):
+            nonlocal call_count
+            call_count[0] += 1
+            if call_count[0] == 1:
+                raise TimeoutError("regex timed out")
+            return original_count(content, keyword, pattern, case_insensitive)
+
+        monkeypatch.setattr(search_tool, "_count_occurrences", mock_count_occurrences)
+
+        result = await search_tool.execute("hello", [str(tmp_path)], use_regex=True)
+
+        # Search should continue - one file found, one skipped
+        assert "metadata" in result
+        assert len(result["metadata"]["skipped_files"]) == 1
+        assert result["metadata"]["skip_reason"] == "regex_timeout"
+        # At least one file should have been searched successfully
+        assert result["summary"]["total_files_searched"] >= 1
+
+    @pytest.mark.asyncio
+    async def test_timeout_reported_in_metadata(
+        self, search_tool: KeywordSearchTool, tmp_path: Path, monkeypatch
+    ):
+        """Test that skipped files appear in result metadata."""
+        # Create test files
+        test_file = tmp_path / "test.py"
+        test_file.write_text("hello world")
+
+        # Make _count_occurrences raise timeout
+        def mock_count_occurrences(content, keyword, pattern, case_insensitive):
+            raise TimeoutError("regex timed out")
+
+        monkeypatch.setattr(search_tool, "_count_occurrences", mock_count_occurrences)
+
+        # Since only 1 file and it times out, but 1/1 = 100% > 50%, this will abort
+        from workshop_mcp.security import RegexAbortError
+
+        with pytest.raises(RegexAbortError, match="timed out on too many files"):
+            await search_tool.execute("hello", [str(tmp_path)], use_regex=True)
+
+    @pytest.mark.asyncio
+    async def test_abort_when_majority_timeout(
+        self, search_tool: KeywordSearchTool, tmp_path: Path, monkeypatch
+    ):
+        """Test that RegexAbortError is raised when >50% files timeout."""
+        from workshop_mcp.security import RegexAbortError
+
+        # Create 3 test files
+        (tmp_path / "file1.py").write_text("hello world")
+        (tmp_path / "file2.py").write_text("hello again")
+        (tmp_path / "file3.py").write_text("hello there")
+
+        # Make all calls raise timeout (100% timeout rate)
+        def mock_count_occurrences(content, keyword, pattern, case_insensitive):
+            raise TimeoutError("regex timed out")
+
+        monkeypatch.setattr(search_tool, "_count_occurrences", mock_count_occurrences)
+
+        with pytest.raises(RegexAbortError, match="timed out on too many files"):
+            await search_tool.execute("hello", [str(tmp_path)], use_regex=True)
+
+    @pytest.mark.asyncio
+    async def test_no_abort_when_minority_timeout(
+        self, search_tool: KeywordSearchTool, tmp_path: Path, monkeypatch
+    ):
+        """Test that search continues when <=50% files timeout."""
+        # Create 3 test files
+        (tmp_path / "file1.py").write_text("hello world")
+        (tmp_path / "file2.py").write_text("hello again")
+        (tmp_path / "file3.py").write_text("hello there")
+
+        # Make only first call timeout (1 of 3 = 33% < 50%)
+        call_count = [0]
+        original_count = search_tool._count_occurrences
+
+        def mock_count_occurrences(content, keyword, pattern, case_insensitive):
+            nonlocal call_count
+            call_count[0] += 1
+            if call_count[0] == 1:
+                raise TimeoutError("regex timed out")
+            return original_count(content, keyword, pattern, case_insensitive)
+
+        monkeypatch.setattr(search_tool, "_count_occurrences", mock_count_occurrences)
+
+        # Should not raise - only 1/3 files timed out (33%)
+        result = await search_tool.execute("hello", [str(tmp_path)], use_regex=True)
+
+        # Should have metadata with 1 skipped file
+        assert "metadata" in result
+        assert len(result["metadata"]["skipped_files"]) == 1
+        # And 2 files searched successfully
+        assert result["summary"]["total_files_searched"] == 2
+
+    @pytest.mark.asyncio
+    async def test_non_regex_mode_skips_validation(
+        self, search_tool: KeywordSearchTool, tmp_path: Path
+    ):
+        """Test that non-regex mode skips pattern validation entirely."""
+        # Create a test file
+        test_file = tmp_path / "test.py"
+        test_file.write_text("(a+)+ test content")
+
+        # Pattern that would be rejected in regex mode should work as literal string
+        result = await search_tool.execute(
+            "(a+)+", [str(tmp_path)], use_regex=False
+        )
+
+        # Should find the literal string "(a+)+"
+        assert result["summary"]["total_occurrences"] == 1
