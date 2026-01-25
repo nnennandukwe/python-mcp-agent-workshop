@@ -363,19 +363,6 @@ class KeywordSearchTool:
         if not use_regex:
             return None
 
-        # Basic ReDoS protection: reject patterns with nested quantifiers
-        # that could cause catastrophic backtracking (e.g., (a+)+, (.*)*)
-        # Note: validate_pattern() already checks this, but we keep as defense-in-depth
-        dangerous_patterns = [
-            r'\([^)]*[+*][^)]*\)[+*]',  # Nested quantifiers like (a+)+
-            r'\([^)]*\|[^)]*\)[+*]',     # Alternation with quantifier like (a|b)+
-        ]
-        for dangerous in dangerous_patterns:
-            if regex.search(dangerous, keyword):
-                raise ValueError(
-                    "Regex pattern rejected: potentially unsafe pattern detected"
-                )
-
         flags = regex.IGNORECASE if case_insensitive else 0
         try:
             return regex.compile(keyword, flags=flags)
