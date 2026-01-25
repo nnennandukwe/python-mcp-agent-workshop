@@ -84,29 +84,34 @@ class WorkshopMCPServer:
         return self._serve_once(stdin, stdout)
 
     def _serve_once(self, stdin: Any, stdout: Any) -> bool:
-        try:
-            request = self._read_message(stdin)
-            if request is None:
-                return False
+        with request_context():
+            try:
+                request = self._read_message(stdin)
+                if request is None:
+                    return False
 
-            response = self._handle_request(request)
-            if response is not None:
-                self._write_message(stdout, response)
-            return True
-        except JsonRpcError as err:
-            # Best-effort: framing/parse errors before we have a request id
-            self._write_message(stdout, self._error_response(None, err))
-            return True
-        except Exception as exc:
-            logger.exception("Server loop error")
-            self._write_message(
-                stdout,
-                self._error_response(
-                    None,
-                    JsonRpcError(-32603, "Internal error", {"details": str(exc)}),
-                ),
-            )
-            return True
+                response = self._handle_request(request)
+                if response is not None:
+                    self._write_message(stdout, response)
+                return True
+            except JsonRpcError as err:
+                # Best-effort: framing/parse errors before we have a request id
+                self._write_message(stdout, self._error_response(None, err))
+                return True
+            except Exception as exc:
+                logger.exception("Server loop error")
+                self._write_message(
+                    stdout,
+                    self._error_response(
+                        None,
+                        JsonRpcError(
+                            -32603,
+                            "Internal error",
+                            {"correlation_id": correlation_id_var.get()},
+                        ),
+                    ),
+                )
+                return True
 
     def _read_message(self, stdin: Any) -> Optional[Dict[str, Any]]:
         headers: Dict[str, str] = {}
@@ -140,7 +145,8 @@ class WorkshopMCPServer:
         try:
             return json.loads(body.decode("utf-8"))
         except json.JSONDecodeError as exc:
-            raise JsonRpcError(-32700, "Parse error", {"details": str(exc)})
+            logger.warning("JSON parse error: %s", exc)
+            raise JsonRpcError(-32700, "Parse error")
 
     def _write_message(self, stdout: Any, message: Dict[str, Any]) -> None:
         data = json.dumps(message, ensure_ascii=False)
@@ -329,11 +335,10 @@ class WorkshopMCPServer:
             keyword = arguments["keyword"]
             root_paths = arguments["root_paths"]
         except KeyError as exc:
+            logger.warning("Missing required argument: %s", exc)
             return self._error_response(
                 request_id,
-                JsonRpcError(
-                    -32602, "Missing required argument", {"missing": str(exc)}
-                ),
+                JsonRpcError(-32602, "Missing required argument"),
             )
 
         if not isinstance(keyword, str):
@@ -414,11 +419,23 @@ class WorkshopMCPServer:
                 "content": [{"type": "text", "text": result_json}],
             }
             return self._success_response(request_id, payload)
-        except (ValueError, FileNotFoundError) as exc:
-            # Parameter or resource error
+        except ValueError as exc:
+            logger.warning("ValueError in keyword_search: %s", exc)
             return self._error_response(
                 request_id,
-                JsonRpcError(-32602, str(exc)),
+                JsonRpcError(-32602, "Invalid parameters"),
+            )
+        except FileNotFoundError as exc:
+            logger.warning("FileNotFoundError in keyword_search: %s", exc)
+            return self._error_response(
+                request_id,
+                JsonRpcError(-32602, "Resource not found"),
+            )
+        except KeyError as exc:
+            logger.warning("KeyError in keyword_search: %s", exc)
+            return self._error_response(
+                request_id,
+                JsonRpcError(-32602, "Missing required argument"),
             )
         except Exception as exc:
             logger.exception("Error executing keyword_search")
@@ -427,7 +444,7 @@ class WorkshopMCPServer:
                 JsonRpcError(
                     -32603,
                     "Internal error",
-                    {"details": "An unexpected error occurred. Check server logs for details."},
+                    {"correlation_id": correlation_id_var.get()},
                 ),
             )
 
@@ -521,11 +538,29 @@ class WorkshopMCPServer:
             }
             return self._success_response(request_id, result)
 
-        except (ValueError, FileNotFoundError, SyntaxError) as exc:
-            # Parameter or resource error
+        except ValueError as exc:
+            logger.warning("ValueError in performance_check: %s", exc)
             return self._error_response(
                 request_id,
-                JsonRpcError(-32602, str(exc)),
+                JsonRpcError(-32602, "Invalid parameters"),
+            )
+        except FileNotFoundError as exc:
+            logger.warning("FileNotFoundError in performance_check: %s", exc)
+            return self._error_response(
+                request_id,
+                JsonRpcError(-32602, "Resource not found"),
+            )
+        except SyntaxError as exc:
+            logger.warning("SyntaxError in performance_check: %s", exc)
+            return self._error_response(
+                request_id,
+                JsonRpcError(-32602, "Invalid source code syntax"),
+            )
+        except KeyError as exc:
+            logger.warning("KeyError in performance_check: %s", exc)
+            return self._error_response(
+                request_id,
+                JsonRpcError(-32602, "Missing required argument"),
             )
         except Exception as exc:
             logger.exception("Error executing performance_check")
@@ -534,7 +569,7 @@ class WorkshopMCPServer:
                 JsonRpcError(
                     -32603,
                     "Internal error",
-                    {"details": "An unexpected error occurred. Check server logs for details."},
+                    {"correlation_id": correlation_id_var.get()},
                 ),
             )
 

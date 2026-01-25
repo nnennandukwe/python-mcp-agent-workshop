@@ -260,7 +260,7 @@ class TestInternalErrorSanitization:
         server = WorkshopMCPServer()
 
         # Mock to raise unexpected exception
-        revealing_error = "Database connection to internal.db failed with password xyz"
+        revealing_error = "Database connection to secret.db failed with password xyz"
         with patch.object(
             server.keyword_search_tool,
             "execute",
@@ -279,7 +279,24 @@ class TestInternalErrorSanitization:
                 },
             }
 
-            response = server._handle_request(request)
+            # Use serve_once to ensure request_context is established
+            request_bytes = json.dumps(request).encode("utf-8")
+            request_message = (
+                f"Content-Length: {len(request_bytes)}\r\n\r\n".encode("utf-8")
+                + request_bytes
+            )
+
+            stdin = BytesIO(request_message)
+            stdout = BytesIO()
+
+            server.serve_once(stdin, stdout)
+
+            # Parse response
+            stdout.seek(0)
+            response_data = stdout.read()
+            header_end = response_data.find(b"\r\n\r\n")
+            response_json = response_data[header_end + 4 :].decode("utf-8")
+            response = json.loads(response_json)
 
         assert "error" in response
         assert response["error"]["code"] == -32603  # Internal error code
@@ -290,7 +307,7 @@ class TestInternalErrorSanitization:
         # Should NOT contain the revealing exception message
         error_str = str(response["error"])
         assert "Database connection" not in error_str
-        assert "internal.db" not in error_str
+        assert "secret.db" not in error_str
         assert "password" not in error_str
 
         # Should have correlation_id in data
@@ -346,7 +363,8 @@ class TestInternalErrorSanitization:
         # Should not contain revealing message
         error_str = str(response["error"])
         assert "buffer overflow" not in error_str
-        assert "internal" not in error_str.lower() or error_str == "Internal error"
+        # "Internal error" is the expected message, but should not have revealing details
+        assert "Unexpected server state" not in error_str
 
 
 class TestSecurityValidationErrorPassthrough:
