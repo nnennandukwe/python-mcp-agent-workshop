@@ -5,6 +5,7 @@ These tests exercise the WorkshopMCPServer stdio framing, JSON-RPC
 request handling, and error responses without relying on the MCP SDK.
 """
 
+import asyncio
 import io
 import json
 from typing import Any, Dict, Optional
@@ -122,6 +123,7 @@ def test_call_tool_response(tmp_path, monkeypatch) -> None:
         assert result_payload["summary"]["total_occurrences"] >= 2
     finally:
         server.loop.close()
+        asyncio.set_event_loop(None)
 
 
 def test_invalid_method_returns_error(server: WorkshopMCPServer) -> None:
