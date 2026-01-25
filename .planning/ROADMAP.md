@@ -55,10 +55,11 @@ Plans:
   2. Full error details are logged internally with correlation IDs
   3. Security-specific exceptions provide typed error handling
   4. No stack traces, file paths, or library versions appear in responses
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 03-01: TBD
+- [ ] 03-01-PLAN.md — Logging context module with TDD (correlation IDs, CorrelationIdFilter, context manager)
+- [ ] 03-02-PLAN.md — Server error sanitization (fix 6 leak points, configure logging, wrap execution in context)
 
 ## Progress
 
@@ -69,10 +70,11 @@ Phases execute in numeric order: 1 -> 2 -> 3
 |-------|----------------|--------|-----------|
 | 1. Path Validation | 2/2 | Complete | 2026-01-25 |
 | 2. ReDoS Protection | 2/2 | Complete | 2026-01-25 |
-| 3. Error Sanitization | 0/TBD | Not started | - |
+| 3. Error Sanitization | 0/2 | Planned | - |
 
 ---
 *Roadmap created: 2026-01-25*
 *Phase 1 planned: 2026-01-25*
 *Phase 2 planned: 2026-01-25*
+*Phase 3 planned: 2026-01-25*
 *Coverage: 9/9 v1 requirements mapped*
