@@ -142,7 +142,7 @@ class TestErrorHandling:
             "jsonrpc": "2.0", "id": 2, "method": "call_tool",
             "params": {"name": "performance_check", "arguments": {"file_path": "/path.py", "source_code": "pass"}},
         })
-        assert "error" in response
+        assert "error" in response and "only one of file_path or source_code" in response["error"]["message"]
 
 
 class TestMCPProtocolCompliance:
@@ -185,4 +185,5 @@ class TestMCPProtocolCompliance:
         response = json.loads(response_data[header_end + 4:].decode("utf-8"))
 
         assert response["jsonrpc"] == "2.0"
+        assert response["id"] == 1
         assert "result" in response

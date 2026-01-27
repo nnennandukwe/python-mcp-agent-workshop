@@ -132,8 +132,9 @@ class TestPathValidationIntegration:
             })
             assert "error" in response, f"Path {path} should be rejected"
             assert response["error"]["code"] == -32602
-            # Error should be generic
-            assert "etc" not in response["error"]["message"].lower() or "outside allowed" in response["error"]["message"]
+            # Error should be generic and not leak path details
+            assert "outside allowed directories" in response["error"]["message"]
+            assert "etc" not in response["error"]["message"].lower()
 
     def test_accepts_valid_paths(self, tmp_path, monkeypatch):
         """Test that valid paths within allowed roots work."""

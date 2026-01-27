@@ -232,7 +232,7 @@ class TestFileTypeFiltering:
 
     def test_is_text_file_method(self, search_tool):
         """Test _is_text_file method with various extensions."""
-        supported = [".py", ".java", ".js", ".ts", ".html", ".css", ".json", ".xml", ".md", ".txt", ".yml"]
+        supported = [".py", ".java", ".js", ".ts", ".html", ".css", ".json", ".xml", ".md", ".txt", ".yml", ".yaml"]
         unsupported = [".bin", ".exe", ".pdf", ".jpg", ".png", ".zip"]
 
         for ext in supported:
