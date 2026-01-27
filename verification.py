@@ -86,7 +86,6 @@ class WorkshopVerifier:
         self.print_header("Python Version Check")
 
         version_info = sys.version_info
-        print(">>>>>>>>>>>>>>>>>>>>>>", version_info)
         current_version = f"{version_info.major}.{version_info.minor}.{version_info.micro}"
 
         if version_info >= (3, 11):
