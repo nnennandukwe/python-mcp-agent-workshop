@@ -11,9 +11,7 @@ Full debugging information should only be available in server logs.
 import json
 import logging
 from io import BytesIO
-from unittest.mock import MagicMock, patch
-
-import pytest
+from unittest.mock import patch
 
 from workshop_mcp.server import WorkshopMCPServer
 
@@ -71,7 +69,7 @@ class TestFileNotFoundErrorSanitization:
         server = WorkshopMCPServer()
 
         # Mock keyword search tool to raise FileNotFoundError with path
-        revealing_path = f"/home/user/sensitive/data/config.json"
+        revealing_path = "/home/user/sensitive/data/config.json"
         with patch.object(
             server.keyword_search_tool,
             "execute",
@@ -217,10 +215,7 @@ class TestParseErrorSanitization:
 
         # Create malformed JSON request
         malformed_json = b'{"jsonrpc": "2.0", "id": 1, "method": "list_tools", invalid}'
-        request_message = (
-            f"Content-Length: {len(malformed_json)}\r\n\r\n".encode("utf-8")
-            + malformed_json
-        )
+        request_message = f"Content-Length: {len(malformed_json)}\r\n\r\n".encode() + malformed_json
 
         stdin = BytesIO(request_message)
         stdout = BytesIO()
@@ -282,8 +277,7 @@ class TestInternalErrorSanitization:
             # Use serve_once to ensure request_context is established
             request_bytes = json.dumps(request).encode("utf-8")
             request_message = (
-                f"Content-Length: {len(request_bytes)}\r\n\r\n".encode("utf-8")
-                + request_bytes
+                f"Content-Length: {len(request_bytes)}\r\n\r\n".encode() + request_bytes
             )
 
             stdin = BytesIO(request_message)
@@ -336,8 +330,7 @@ class TestInternalErrorSanitization:
             request = {"jsonrpc": "2.0", "id": 1, "method": "list_tools"}
             request_bytes = json.dumps(request).encode("utf-8")
             request_message = (
-                f"Content-Length: {len(request_bytes)}\r\n\r\n".encode("utf-8")
-                + request_bytes
+                f"Content-Length: {len(request_bytes)}\r\n\r\n".encode() + request_bytes
             )
 
             stdin = BytesIO(request_message)
@@ -431,7 +424,7 @@ class TestCorrelationIdLogging:
 
         # Get the correlation ID from response
         error_data = response["error"].get("data", {})
-        corr_id = error_data.get("correlation_id", "")
+        error_data.get("correlation_id", "")
 
         # Full error should be in logs
         log_output = caplog.text

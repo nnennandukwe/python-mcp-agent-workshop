@@ -1,12 +1,9 @@
 """Tests for the AST analyzer module."""
 
 import pytest
+
 from workshop_mcp.performance_profiler.ast_analyzer import (
     ASTAnalyzer,
-    CallInfo,
-    FunctionInfo,
-    ImportInfo,
-    LoopInfo,
 )
 
 
@@ -478,7 +475,7 @@ async def good_async():
     async with aiofiles.open("file.txt") as f:
         data = await f.read()
 """
-        analyzer = ASTAnalyzer(source_code=source)
+        ASTAnalyzer(source_code=source)
         # aiofiles.open should not be flagged as blocking
         # Note: This is a heuristic check, so it might still detect some calls
         # The actual validation will be more sophisticated in async_validator

@@ -125,7 +125,13 @@ class TestPerformanceProfilerConfig:
             for arg in args:
                 assert "name" in arg
                 assert "type" in arg
-                assert arg["type"] in ["string", "integer", "boolean", "array", "object"]
+                assert arg["type"] in [
+                    "string",
+                    "integer",
+                    "boolean",
+                    "array",
+                    "object",
+                ]
 
                 if "required" in arg:
                     assert isinstance(arg["required"], bool)
@@ -331,6 +337,4 @@ class TestAllAgentConfigs:
                         f"output_schema should be object in {toml_file}:{cmd_name}"
                     )
                 except json.JSONDecodeError as e:
-                    pytest.fail(
-                        f"Invalid JSON in output_schema for {toml_file}:{cmd_name}: {e}"
-                    )
+                    pytest.fail(f"Invalid JSON in output_schema for {toml_file}:{cmd_name}: {e}")

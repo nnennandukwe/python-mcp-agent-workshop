@@ -12,7 +12,6 @@ Each anti-pattern is annotated with comments explaining the issue.
 
 import json
 import time
-from typing import List
 
 
 # =============================================================================
@@ -29,11 +28,8 @@ def get_user_orders_bad(users):
     results = []
     for user in users:
         # This triggers a new database query for each user
-        orders = user.orders.filter(status='pending')  # N+1 query!
-        results.append({
-            'user': user.name,
-            'order_count': orders.count()
-        })
+        orders = user.orders.filter(status="pending")  # N+1 query!
+        results.append({"user": user.name, "order_count": orders.count()})
     return results
 
 
@@ -57,7 +53,7 @@ async def fetch_config_bad():
     entire event loop, defeating the purpose of async/await.
     """
     # This blocks the event loop while reading!
-    with open('config.json') as f:  # Blocking I/O!
+    with open("config.json") as f:  # Blocking I/O!
         config = json.load(f)
 
     # This blocks all other coroutines!
@@ -79,7 +75,7 @@ async def fetch_config_bad():
 # ISSUE 3: Inefficient String Concatenation in Loop
 # Severity: MEDIUM
 # =============================================================================
-def build_report_bad(items: List[dict]) -> str:
+def build_report_bad(items: list[dict]) -> str:
     """
     BAD: String concatenation in loop.
 
@@ -105,7 +101,7 @@ def build_report_bad(items: List[dict]) -> str:
 # ISSUE 4: Memory Inefficiency - Loading Entire File
 # Severity: MEDIUM
 # =============================================================================
-def process_log_bad(log_path: str) -> List[str]:
+def process_log_bad(log_path: str) -> list[str]:
     """
     BAD: Loading entire file into memory.
 
@@ -118,7 +114,7 @@ def process_log_bad(log_path: str) -> List[str]:
         lines = f.readlines()
 
     for line in lines:
-        if 'ERROR' in line:
+        if "ERROR" in line:
             errors.append(line)
     return errors
 
@@ -137,7 +133,7 @@ def process_log_bad(log_path: str) -> List[str]:
 # ISSUE 5: Deeply Nested Loops
 # Severity: MEDIUM
 # =============================================================================
-def find_triplets_bad(numbers: List[int], target: int) -> List[tuple]:
+def find_triplets_bad(numbers: list[int], target: int) -> list[tuple]:
     """
     BAD: O(n³) algorithm with deeply nested loops.
 
@@ -196,7 +192,7 @@ async def process_users_bad(users):
         report += f"User: {user.name}, Email: {profile.email}\n"
 
     # Issue 2: Blocking file I/O in async
-    with open('report.txt', 'w') as f:
+    with open("report.txt", "w") as f:
         f.write(report)
 
     return report

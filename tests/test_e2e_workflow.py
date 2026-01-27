@@ -8,10 +8,7 @@ import json
 from io import BytesIO
 from pathlib import Path
 
-import pytest
-
 from workshop_mcp.server import WorkshopMCPServer
-
 
 # Path to test fixtures
 FIXTURES_DIR = Path(__file__).parent.parent / "test_fixtures"
@@ -58,7 +55,9 @@ class TestBasicPerformanceAnalysis:
         assert "by_category" in summary
 
         # Should detect multiple issues (blocking I/O, memory, loops)
-        assert summary["total_issues"] >= 5, f"Expected at least 5 issues, got {summary['total_issues']}"
+        assert summary["total_issues"] >= 5, (
+            f"Expected at least 5 issues, got {summary['total_issues']}"
+        )
 
         # Should detect critical issues (blocking I/O in async)
         assert summary["by_severity"]["critical"] >= 1, "Expected at least 1 critical issue"
@@ -227,6 +226,7 @@ class TestSourceCodeAnalysis:
         source_code = '''
 import time
 
+
 async def problematic_function():
     """Async function with blocking I/O."""
     time.sleep(1)  # Blocking!
@@ -350,10 +350,10 @@ class TestErrorHandling:
         """Test error response for source code with syntax errors."""
         server = WorkshopMCPServer()
 
-        source_code = '''
+        source_code = """
 def broken_function(
     # Missing closing paren
-'''
+"""
 
         request = {
             "jsonrpc": "2.0",
@@ -496,7 +496,7 @@ class TestMCPProtocolCompliance:
         # Create framed request
         request_json = json.dumps(request)
         request_bytes = request_json.encode("utf-8")
-        framed_request = f"Content-Length: {len(request_bytes)}\r\n\r\n".encode("utf-8") + request_bytes
+        framed_request = f"Content-Length: {len(request_bytes)}\r\n\r\n".encode() + request_bytes
 
         stdin = BytesIO(framed_request)
         stdout = BytesIO()
@@ -513,7 +513,7 @@ class TestMCPProtocolCompliance:
         header_end = response_data.find(b"\r\n\r\n")
         assert header_end > 0
 
-        response_json = response_data[header_end + 4:].decode("utf-8")
+        response_json = response_data[header_end + 4 :].decode("utf-8")
         response = json.loads(response_json)
 
         assert response["jsonrpc"] == "2.0"

@@ -26,9 +26,9 @@ Usage:
 
 import logging
 import uuid
+from collections.abc import Generator
 from contextlib import contextmanager
 from contextvars import ContextVar
-from typing import Generator
 
 # ContextVar for correlation ID with default "-" when not in request context
 correlation_id_var: ContextVar[str] = ContextVar("correlation_id", default="-")

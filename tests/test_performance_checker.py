@@ -1,8 +1,9 @@
 """Tests for the performance checker module."""
 
 import pytest
-from workshop_mcp.performance_profiler.performance_checker import PerformanceChecker
+
 from workshop_mcp.performance_profiler.patterns import IssueCategory, Severity
+from workshop_mcp.performance_profiler.performance_checker import PerformanceChecker
 
 
 class TestPerformanceCheckerInitialization:
@@ -154,7 +155,7 @@ async def read_file():
     return data
 """
         checker = PerformanceChecker(source_code=source)
-        issues = checker.check_blocking_io_in_async()
+        checker.check_blocking_io_in_async()
 
         # aiofiles.open should not be flagged
         # Note: The issue might still be detected depending on implementation
@@ -189,10 +190,7 @@ for item in items:
         # Might detect string concatenation
         # Note: This depends on AST analysis capabilities
         if issues:
-            assert any(
-                issue.category == IssueCategory.INEFFICIENT_LOOP
-                for issue in issues
-            )
+            assert any(issue.category == IssueCategory.INEFFICIENT_LOOP for issue in issues)
 
     def test_detect_deeply_nested_loops(self):
         """Test detection of deeply nested loops."""
@@ -208,7 +206,8 @@ for i in range(10):
         assert len(issues) > 0
         # Should detect the innermost loop at nesting level 2
         deep_loop_issues = [
-            i for i in issues
+            i
+            for i in issues
             if "nested" in i.description.lower() or "depth" in i.description.lower()
         ]
         assert len(deep_loop_issues) > 0
@@ -295,7 +294,9 @@ with open('data.pkl', 'rb') as f:
         assert issue.category == IssueCategory.MEMORY_INEFFICIENCY
         assert issue.severity == Severity.MEDIUM
         assert "pickle" in issue.description.lower()
-        assert "streaming" in issue.suggestion.lower() or "memory-mapped" in issue.suggestion.lower()
+        assert (
+            "streaming" in issue.suggestion.lower() or "memory-mapped" in issue.suggestion.lower()
+        )
 
     def test_no_false_positives_for_unrelated_functions(self):
         """Test that functions with 'read' in name don't trigger false positives."""
@@ -345,8 +346,7 @@ async def process_users():
         if Severity.CRITICAL in severities:
             critical_index = severities.index(Severity.CRITICAL)
             assert all(
-                s in [Severity.CRITICAL, Severity.HIGH]
-                for s in severities[:critical_index + 1]
+                s in [Severity.CRITICAL, Severity.HIGH] for s in severities[: critical_index + 1]
             )
 
     def test_check_all_caches_results(self):
@@ -397,8 +397,7 @@ async def fetch():
         blocking_issues = checker.get_issues_by_category(IssueCategory.BLOCKING_IO_IN_ASYNC)
         assert len(blocking_issues) > 0
         assert all(
-            issue.category == IssueCategory.BLOCKING_IO_IN_ASYNC
-            for issue in blocking_issues
+            issue.category == IssueCategory.BLOCKING_IO_IN_ASYNC for issue in blocking_issues
         )
 
     def test_get_critical_issues(self):
@@ -503,7 +502,7 @@ async def fetch_data(url):
     return cache
 """
         checker = PerformanceChecker(source_code=source)
-        issues = checker.check_all()
+        checker.check_all()
 
         # Should have minimal or no blocking I/O issues
         blocking_issues = checker.get_issues_by_category(IssueCategory.BLOCKING_IO_IN_ASYNC)

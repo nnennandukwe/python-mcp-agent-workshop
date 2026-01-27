@@ -13,7 +13,7 @@ import os
 import sys
 
 # Add src to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from workshop_mcp.performance_profiler import PerformanceChecker
 from workshop_mcp.performance_profiler.patterns import IssueCategory, Severity
@@ -21,9 +21,9 @@ from workshop_mcp.performance_profiler.patterns import IssueCategory, Severity
 
 def analyze_file(file_path: str) -> None:
     """Analyze a file and print results."""
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"Analyzing: {file_path}")
-    print('='*60)
+    print("=" * 60)
 
     try:
         checker = PerformanceChecker(file_path=file_path)
@@ -41,9 +41,9 @@ def analyze_file(file_path: str) -> None:
     summary = checker.get_summary()
 
     # Print summary
-    print(f"\nSummary:")
+    print("\nSummary:")
     print(f"  Total issues: {summary['total_issues']}")
-    print(f"  By severity:")
+    print("  By severity:")
     print(f"    Critical: {summary['by_severity']['critical']}")
     print(f"    High:     {summary['by_severity']['high']}")
     print(f"    Medium:   {summary['by_severity']['medium']}")
@@ -51,20 +51,22 @@ def analyze_file(file_path: str) -> None:
 
     # Print detailed issues
     if issues:
-        print(f"\nDetailed Issues:")
-        print('-'*60)
+        print("\nDetailed Issues:")
+        print("-" * 60)
 
         for i, issue in enumerate(issues, 1):
             severity_color = {
-                Severity.CRITICAL: '\033[91m',  # Red
-                Severity.HIGH: '\033[93m',      # Yellow
-                Severity.MEDIUM: '\033[94m',    # Blue
-                Severity.LOW: '\033[90m',       # Gray
-            }.get(issue.severity, '')
-            reset = '\033[0m'
+                Severity.CRITICAL: "\033[91m",  # Red
+                Severity.HIGH: "\033[93m",  # Yellow
+                Severity.MEDIUM: "\033[94m",  # Blue
+                Severity.LOW: "\033[90m",  # Gray
+            }.get(issue.severity, "")
+            reset = "\033[0m"
 
-            print(f"\n{i}. {severity_color}[{issue.severity.value.upper()}]{reset} "
-                  f"{issue.category.value}")
+            print(
+                f"\n{i}. {severity_color}[{issue.severity.value.upper()}]{reset} "
+                f"{issue.category.value}"
+            )
             print(f"   Line {issue.line_number}: {issue.description}")
             print(f"   Function: {issue.function_name or 'N/A'}")
             print(f"   Suggestion: {issue.suggestion}")
@@ -77,9 +79,9 @@ def analyze_file(file_path: str) -> None:
 
 def analyze_source_code() -> None:
     """Demonstrate analyzing source code directly."""
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("Analyzing source code string")
-    print('='*60)
+    print("=" * 60)
 
     source = '''
 async def bad_example():
@@ -99,25 +101,24 @@ async def bad_example():
     checker = PerformanceChecker(source_code=source)
     issues = checker.check_all()
 
-    print(f"\nSource code:")
-    print('-'*40)
-    for i, line in enumerate(source.strip().split('\n'), 1):
+    print("\nSource code:")
+    print("-" * 40)
+    for i, line in enumerate(source.strip().split("\n"), 1):
         print(f"{i:3}: {line}")
-    print('-'*40)
+    print("-" * 40)
 
     print(f"\nIssues found: {len(issues)}")
     for issue in issues:
-        print(f"  [{issue.severity.value.upper()}] Line {issue.line_number}: "
-              f"{issue.description}")
+        print(f"  [{issue.severity.value.upper()}] Line {issue.line_number}: {issue.description}")
 
 
 def demonstrate_filtering() -> None:
     """Demonstrate filtering issues by severity and category."""
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("Demonstrating issue filtering")
-    print('='*60)
+    print("=" * 60)
 
-    source = '''
+    source = """
 async def multiple_issues():
     for user in users:
         # N+1 query
@@ -131,7 +132,7 @@ async def multiple_issues():
         result = ""
         for order in orders:
             result += str(order)
-'''
+"""
 
     checker = PerformanceChecker(source_code=source)
 
@@ -159,20 +160,20 @@ async def multiple_issues():
 def main():
     """Run all examples."""
     print("Performance Profiler - Programmatic Usage Examples")
-    print("="*60)
+    print("=" * 60)
 
     # Get the examples directory
     examples_dir = os.path.dirname(os.path.abspath(__file__))
 
     # Analyze the bad_performance.py example
-    bad_file = os.path.join(examples_dir, 'bad_performance.py')
+    bad_file = os.path.join(examples_dir, "bad_performance.py")
     if os.path.exists(bad_file):
         analyze_file(bad_file)
     else:
         print(f"\nNote: {bad_file} not found, skipping file analysis")
 
     # Analyze the good_performance.py example
-    good_file = os.path.join(examples_dir, 'good_performance.py')
+    good_file = os.path.join(examples_dir, "good_performance.py")
     if os.path.exists(good_file):
         analyze_file(good_file)
 
@@ -182,9 +183,9 @@ def main():
     # Demonstrate filtering
     demonstrate_filtering()
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("Examples complete!")
-    print("="*60)
+    print("=" * 60)
 
 
 if __name__ == "__main__":

@@ -2,7 +2,6 @@
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import List, Optional
 
 
 class Severity(Enum):
@@ -35,8 +34,8 @@ class PerformanceIssue:
     end_line_number: int
     description: str
     suggestion: str
-    code_snippet: Optional[str] = None
-    function_name: Optional[str] = None
+    code_snippet: str | None = None
+    function_name: str | None = None
 
 
 # ORM patterns that indicate database queries
@@ -122,7 +121,7 @@ LIST_GROWTH_INDICATORS = {
 }
 
 
-def get_orm_type(inferred_callable: Optional[str]) -> Optional[str]:
+def get_orm_type(inferred_callable: str | None) -> str | None:
     """
     Determine which ORM framework is being used based on the callable.
 
@@ -145,7 +144,7 @@ def get_orm_type(inferred_callable: Optional[str]) -> Optional[str]:
     return None
 
 
-def get_orm_type_from_function_name(function_name: str) -> Optional[str]:
+def get_orm_type_from_function_name(function_name: str) -> str | None:
     """
     Try to determine ORM type from function name alone (less reliable).
 
@@ -155,7 +154,11 @@ def get_orm_type_from_function_name(function_name: str) -> Optional[str]:
     Returns:
         ORM type ('django', 'sqlalchemy', or None)
     """
-    if ".objects." in function_name or "objects.all" in function_name or "objects.filter" in function_name:
+    if (
+        ".objects." in function_name
+        or "objects.all" in function_name
+        or "objects.filter" in function_name
+    ):
         return "django"
     elif "session.query" in function_name or ".query(" in function_name:
         return "sqlalchemy"
@@ -163,7 +166,7 @@ def get_orm_type_from_function_name(function_name: str) -> Optional[str]:
     return None
 
 
-def is_orm_query(function_name: str, inferred_callable: Optional[str]) -> bool:
+def is_orm_query(function_name: str, inferred_callable: str | None) -> bool:
     """
     Check if a function call is likely an ORM query.
 
@@ -188,7 +191,11 @@ def is_orm_query(function_name: str, inferred_callable: Optional[str]) -> bool:
 
     # Additional heuristic checks for common ORM patterns
     # Django: anything with .objects. or .all() or .filter() etc
-    if ".objects." in function_name or "objects.all" in function_name or "objects.filter" in function_name:
+    if (
+        ".objects." in function_name
+        or "objects.all" in function_name
+        or "objects.filter" in function_name
+    ):
         return True
 
     # Check for attribute access patterns like .all(), .filter(), .get()
@@ -198,7 +205,7 @@ def is_orm_query(function_name: str, inferred_callable: Optional[str]) -> bool:
     return False
 
 
-def is_blocking_io(function_name: str, inferred_callable: Optional[str]) -> bool:
+def is_blocking_io(function_name: str, inferred_callable: str | None) -> bool:
     """
     Check if a function call is blocking I/O.
 
@@ -218,16 +225,13 @@ def is_blocking_io(function_name: str, inferred_callable: Optional[str]) -> bool
         return True
 
     # Check if it's a requests or urllib call
-    if any(
-        lib in function_name.lower()
-        for lib in ["requests.", "urllib.request"]
-    ):
+    if any(lib in function_name.lower() for lib in ["requests.", "urllib.request"]):
         return True
 
     return False
 
 
-def get_async_alternative(function_name: str, inferred_callable: Optional[str]) -> Optional[str]:
+def get_async_alternative(function_name: str, inferred_callable: str | None) -> str | None:
     """
     Get the async alternative for a blocking I/O function.
 
@@ -256,7 +260,7 @@ def get_async_alternative(function_name: str, inferred_callable: Optional[str]) 
     return None
 
 
-def is_inefficient_string_op(function_name: str, inferred_callable: Optional[str]) -> bool:
+def is_inefficient_string_op(function_name: str, inferred_callable: str | None) -> bool:
     """
     Check if a function call is an inefficient string operation.
 
@@ -277,7 +281,7 @@ def is_inefficient_string_op(function_name: str, inferred_callable: Optional[str
     return False
 
 
-def is_memory_intensive(function_name: str, inferred_callable: Optional[str]) -> bool:
+def is_memory_intensive(function_name: str, inferred_callable: str | None) -> bool:
     """
     Check if a function call is memory-intensive.
 
@@ -307,7 +311,7 @@ def is_memory_intensive(function_name: str, inferred_callable: Optional[str]) ->
     return False
 
 
-def get_memory_optimization_suggestion(function_name: str, inferred_callable: Optional[str]) -> str:
+def get_memory_optimization_suggestion(function_name: str, inferred_callable: str | None) -> str:
     """
     Get optimization suggestion for a memory-intensive operation.
 
@@ -321,10 +325,14 @@ def get_memory_optimization_suggestion(function_name: str, inferred_callable: Op
     # Determine operation type
     if "json.load" in function_name or (inferred_callable and "json.load" in inferred_callable):
         return "Use ijson for streaming JSON parsing to avoid loading entire file into memory"
-    elif "pickle.load" in function_name or (inferred_callable and "pickle.load" in inferred_callable):
+    elif "pickle.load" in function_name or (
+        inferred_callable and "pickle.load" in inferred_callable
+    ):
         return "Consider streaming pickle data or using memory-mapped files for large pickle files"
     elif "readlines" in function_name:
-        return "Iterate over the file object directly instead of readlines() to process line-by-line"
+        return (
+            "Iterate over the file object directly instead of readlines() to process line-by-line"
+        )
     elif "read" in function_name:
         return "Read file in chunks or line-by-line for large files to reduce memory usage"
     else:

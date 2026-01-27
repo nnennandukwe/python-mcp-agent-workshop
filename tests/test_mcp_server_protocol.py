@@ -8,7 +8,7 @@ request handling, and error responses without relying on the MCP SDK.
 import asyncio
 import io
 import json
-from typing import Any, Dict, Optional
+from typing import Any
 
 import pytest
 
@@ -17,14 +17,14 @@ from workshop_mcp.server import WorkshopMCPServer
 
 def _encode_message(payload: Any) -> bytes:
     data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
-    header = f"Content-Length: {len(data)}\r\n\r\n".encode("utf-8")
+    header = f"Content-Length: {len(data)}\r\n\r\n".encode()
     return header + data
 
 
-def _decode_message(raw: bytes) -> Dict[str, Any]:
+def _decode_message(raw: bytes) -> dict[str, Any]:
     header_blob, body = raw.split(b"\r\n\r\n", 1)
 
-    content_length: Optional[int] = None
+    content_length: int | None = None
     for line in header_blob.decode("utf-8", errors="replace").split("\r\n"):
         if line.lower().startswith("content-length:"):
             content_length = int(line.split(":", 1)[1].strip())
@@ -34,9 +34,7 @@ def _decode_message(raw: bytes) -> Dict[str, Any]:
     return json.loads(body[:content_length].decode("utf-8"))
 
 
-def _run_server_harness(
-    server: WorkshopMCPServer, raw_message: bytes
-) -> Optional[Dict[str, Any]]:
+def _run_server_harness(server: WorkshopMCPServer, raw_message: bytes) -> dict[str, Any] | None:
     stdin = io.BytesIO(raw_message)
     stdout = io.BytesIO()
 
@@ -53,7 +51,7 @@ def _run_server_harness(
 
 
 def _assert_jsonrpc_error(
-    response: Optional[Dict[str, Any]],
+    response: dict[str, Any] | None,
     *,
     code: int,
     message_contains: str | None = None,
@@ -148,7 +146,7 @@ def test_invalid_method_returns_error(server: WorkshopMCPServer) -> None:
 
 def test_malformed_json_returns_parse_error(server: WorkshopMCPServer) -> None:
     raw_payload = b'{"jsonrpc": "2.0", "method": "initialize",}'
-    header = f"Content-Length: {len(raw_payload)}\r\n\r\n".encode("utf-8")
+    header = f"Content-Length: {len(raw_payload)}\r\n\r\n".encode()
     message = header + raw_payload
 
     response = _run_server_harness(server, message)
@@ -175,9 +173,7 @@ class TestJsonRpcError:
         """Test __str__ with data field populated."""
         from workshop_mcp.server import JsonRpcError
 
-        error = JsonRpcError(
-            code=-32602, message="Invalid params", data={"expected": "object"}
-        )
+        error = JsonRpcError(code=-32602, message="Invalid params", data={"expected": "object"})
         assert str(error) == "Invalid params"
 
 
@@ -199,9 +195,7 @@ class TestServerLoop:
         assert result is False
         assert stdout.getvalue() == b""
 
-    def test_serve_once_returns_false_on_incomplete_body(
-        self, server: WorkshopMCPServer
-    ) -> None:
+    def test_serve_once_returns_false_on_incomplete_body(self, server: WorkshopMCPServer) -> None:
         """Test that serve_once returns False when body is incomplete (EOF mid-message)."""
         # Header says 100 bytes but only 10 bytes provided
         message = b'Content-Length: 100\r\n\r\n{"jsonrpc"'
@@ -271,15 +265,11 @@ class TestMessageFraming:
         assert response is not None
         assert "result" in response
 
-    def test_empty_header_line_terminates_headers(
-        self, server: WorkshopMCPServer
-    ) -> None:
+    def test_empty_header_line_terminates_headers(self, server: WorkshopMCPServer) -> None:
         """Test that empty line (after stripping) terminates header parsing."""
         payload = b'{"jsonrpc": "2.0", "id": 1, "method": "list_tools"}'
         # Use just \n instead of \r\n for the empty line
-        message = (
-            b"Content-Length: " + str(len(payload)).encode() + b"\r\n" b"\n" + payload
-        )
+        message = b"Content-Length: " + str(len(payload)).encode() + b"\r\n\n" + payload
         response = _run_server_harness(server, message)
 
         assert response is not None
@@ -305,7 +295,7 @@ class TestRequestValidation:
     def test_request_is_string(self, server: WorkshopMCPServer) -> None:
         """Test error when request is a string instead of object."""
         raw_payload = b'"just a string"'
-        header = f"Content-Length: {len(raw_payload)}\r\n\r\n".encode("utf-8")
+        header = f"Content-Length: {len(raw_payload)}\r\n\r\n".encode()
         message = header + raw_payload
 
         response = _run_server_harness(server, message)
@@ -315,9 +305,7 @@ class TestRequestValidation:
     def test_notification_returns_none(self, server: WorkshopMCPServer) -> None:
         """Test that notifications (no id field) return no response."""
         # Notification: has method but no id field at all
-        message = _encode_message(
-            {"jsonrpc": "2.0", "method": "notifications/initialized"}
-        )
+        message = _encode_message({"jsonrpc": "2.0", "method": "notifications/initialized"})
         stdin = io.BytesIO(message)
         stdout = io.BytesIO()
 
@@ -329,9 +317,7 @@ class TestRequestValidation:
 
     def test_invalid_id_type_list(self, server: WorkshopMCPServer) -> None:
         """Test error when id is a list (invalid type)."""
-        message = _encode_message(
-            {"jsonrpc": "2.0", "id": [1, 2], "method": "list_tools"}
-        )
+        message = _encode_message({"jsonrpc": "2.0", "id": [1, 2], "method": "list_tools"})
         response = _run_server_harness(server, message)
 
         _assert_jsonrpc_error(response, code=-32600, message_contains="Invalid Request")
@@ -402,9 +388,7 @@ class TestRequestValidation:
         _assert_jsonrpc_error(response, code=-32602)
 
 
-# =============================================================================
-# Tool call parameter validation
-# =============================================================================
+# ======================================================================
 
 
 class TestToolCallValidation:
@@ -466,9 +450,7 @@ class TestKeywordSearchValidation:
         )
         response = _run_server_harness(server, message)
 
-        _assert_jsonrpc_error(
-            response, code=-32602, message_contains="keyword must be a string"
-        )
+        _assert_jsonrpc_error(response, code=-32602, message_contains="keyword must be a string")
 
     def test_root_paths_not_list(self, server: WorkshopMCPServer) -> None:
         """Test error when root_paths is not a list."""
@@ -485,9 +467,7 @@ class TestKeywordSearchValidation:
         )
         response = _run_server_harness(server, message)
 
-        _assert_jsonrpc_error(
-            response, code=-32602, message_contains="root_paths must be a list"
-        )
+        _assert_jsonrpc_error(response, code=-32602, message_contains="root_paths must be a list")
 
     def test_root_paths_contains_non_string(self, server: WorkshopMCPServer) -> None:
         """Test error when root_paths contains non-string elements."""
@@ -552,9 +532,7 @@ class TestKeywordSearchValidation:
         )
         response = _run_server_harness(server, message)
 
-        _assert_jsonrpc_error(
-            response, code=-32602, message_contains="use_regex must be a boolean"
-        )
+        _assert_jsonrpc_error(response, code=-32602, message_contains="use_regex must be a boolean")
 
     def test_include_patterns_not_list(self, server: WorkshopMCPServer) -> None:
         """Test error when include_patterns is not a list."""
@@ -579,9 +557,7 @@ class TestKeywordSearchValidation:
             response, code=-32602, message_contains="include_patterns must be a list"
         )
 
-    def test_include_patterns_contains_non_string(
-        self, server: WorkshopMCPServer
-    ) -> None:
+    def test_include_patterns_contains_non_string(self, server: WorkshopMCPServer) -> None:
         """Test error when include_patterns contains non-string elements."""
         message = _encode_message(
             {
@@ -629,9 +605,7 @@ class TestKeywordSearchValidation:
             response, code=-32602, message_contains="exclude_patterns must be a list"
         )
 
-    def test_exclude_patterns_contains_non_string(
-        self, server: WorkshopMCPServer
-    ) -> None:
+    def test_exclude_patterns_contains_non_string(self, server: WorkshopMCPServer) -> None:
         """Test error when exclude_patterns contains non-string elements."""
         message = _encode_message(
             {
@@ -660,9 +634,7 @@ class TestKeywordSearchValidation:
 class TestPerformanceCheckValidation:
     """Tests for performance_check argument validation."""
 
-    def test_performance_check_non_dict_arguments(
-        self, server: WorkshopMCPServer
-    ) -> None:
+    def test_performance_check_non_dict_arguments(self, server: WorkshopMCPServer) -> None:
         """Test error when performance_check arguments is not a dict."""
         message = _encode_message(
             {
@@ -676,9 +648,7 @@ class TestPerformanceCheckValidation:
 
         _assert_jsonrpc_error(response, code=-32602, message_contains="Invalid params")
 
-    def test_performance_check_both_file_and_source(
-        self, server: WorkshopMCPServer
-    ) -> None:
+    def test_performance_check_both_file_and_source(self, server: WorkshopMCPServer) -> None:
         """Test error when both file_path and source_code are provided."""
         message = _encode_message(
             {

@@ -10,13 +10,13 @@ import asyncio
 import json
 import logging
 import sys
-from dataclasses import dataclass, asdict
-from typing import Any, Dict, Optional
+from dataclasses import dataclass
+from typing import Any
 
 from .keyword_search import KeywordSearchTool
 from .logging_context import CorrelationIdFilter, correlation_id_var, request_context
 from .performance_profiler import PerformanceChecker
-from .security import PathValidator, PathValidationError, SecurityValidationError
+from .security import PathValidationError, PathValidator, SecurityValidationError
 
 # Configure logging with correlation ID support
 logging.basicConfig(
@@ -40,7 +40,7 @@ DEFAULT_PROTOCOL_VERSION = "2024-11-05"
 class JsonRpcError(Exception):
     code: int
     message: str
-    data: Optional[Dict[str, Any]] = None
+    data: dict[str, Any] | None = None
 
     def __str__(self) -> str:
         return self.message
@@ -99,7 +99,7 @@ class WorkshopMCPServer:
                 # Best-effort: framing/parse errors before we have a request id
                 self._write_message(stdout, self._error_response(None, err))
                 return True
-            except Exception as exc:
+            except Exception:
                 logger.exception("Server loop error")
                 self._write_message(
                     stdout,
@@ -114,8 +114,8 @@ class WorkshopMCPServer:
                 )
                 return True
 
-    def _read_message(self, stdin: Any) -> Optional[Dict[str, Any]]:
-        headers: Dict[str, str] = {}
+    def _read_message(self, stdin: Any) -> dict[str, Any] | None:
+        headers: dict[str, str] = {}
         while True:
             line = stdin.readline()
             if line == b"":
@@ -149,15 +149,15 @@ class WorkshopMCPServer:
             logger.warning("JSON parse error: %s", exc)
             raise JsonRpcError(-32700, "Parse error")
 
-    def _write_message(self, stdout: Any, message: Dict[str, Any]) -> None:
+    def _write_message(self, stdout: Any, message: dict[str, Any]) -> None:
         data = json.dumps(message, ensure_ascii=False)
         payload = data.encode("utf-8")
-        header = f"Content-Length: {len(payload)}\r\n\r\n".encode("utf-8")
+        header = f"Content-Length: {len(payload)}\r\n\r\n".encode()
         stdout.write(header)
         stdout.write(payload)
         stdout.flush()
 
-    def _handle_request(self, request: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def _handle_request(self, request: dict[str, Any]) -> dict[str, Any] | None:
         if not isinstance(request, dict):
             return self._error_response(None, JsonRpcError(-32600, "Invalid Request"))
 
@@ -179,9 +179,7 @@ class WorkshopMCPServer:
             return self._error_response(None, JsonRpcError(-32600, "Invalid Request"))
 
         if jsonrpc != JSONRPC_VERSION or not isinstance(method, str):
-            return self._error_response(
-                request_id, JsonRpcError(-32600, "Invalid Request")
-            )
+            return self._error_response(request_id, JsonRpcError(-32600, "Invalid Request"))
 
         if method == "initialize":
             return self._handle_initialize(request_id, request.get("params"))
@@ -195,9 +193,7 @@ class WorkshopMCPServer:
             JsonRpcError(-32601, f"Method not found: {method}"),
         )
 
-    def _handle_initialize(
-        self, request_id: Any, params: Optional[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+    def _handle_initialize(self, request_id: Any, params: dict[str, Any] | None) -> dict[str, Any]:
         if params is not None and not isinstance(params, dict):
             return self._error_response(
                 request_id,
@@ -213,7 +209,7 @@ class WorkshopMCPServer:
         }
         return self._success_response(request_id, result)
 
-    def _handle_list_tools(self, request_id: Any) -> Dict[str, Any]:
+    def _handle_list_tools(self, request_id: Any) -> dict[str, Any]:
         result = {
             "tools": [
                 {
@@ -256,16 +252,12 @@ class WorkshopMCPServer:
                             },
                             "include_patterns": {
                                 "type": "array",
-                                "description": (
-                                    "Optional glob patterns to include matching files"
-                                ),
+                                "description": ("Optional glob patterns to include matching files"),
                                 "items": {"type": "string"},
                             },
                             "exclude_patterns": {
                                 "type": "array",
-                                "description": (
-                                    "Optional glob patterns to exclude matching files"
-                                ),
+                                "description": ("Optional glob patterns to exclude matching files"),
                                 "items": {"type": "string"},
                             },
                         },
@@ -302,9 +294,7 @@ class WorkshopMCPServer:
         }
         return self._success_response(request_id, result)
 
-    def _handle_call_tool(
-        self, request_id: Any, params: Optional[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+    def _handle_call_tool(self, request_id: Any, params: dict[str, Any] | None) -> dict[str, Any]:
         if not isinstance(params, dict):
             return self._error_response(
                 request_id,
@@ -324,9 +314,7 @@ class WorkshopMCPServer:
                 JsonRpcError(-32602, "Unknown tool", {"tool": name}),
             )
 
-    def _execute_keyword_search(
-        self, request_id: Any, arguments: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def _execute_keyword_search(self, request_id: Any, arguments: dict[str, Any]) -> dict[str, Any]:
         if not isinstance(arguments, dict):
             return self._error_response(
                 request_id,
@@ -445,7 +433,7 @@ class WorkshopMCPServer:
                 request_id,
                 JsonRpcError(-32602, str(exc)),
             )
-        except Exception as exc:
+        except Exception:
             logger.exception("Error executing keyword_search")
             return self._error_response(
                 request_id,
@@ -457,8 +445,8 @@ class WorkshopMCPServer:
             )
 
     def _execute_performance_check(
-        self, request_id: Any, arguments: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, request_id: Any, arguments: dict[str, Any]
+    ) -> dict[str, Any]:
         if not isinstance(arguments, dict):
             return self._error_response(
                 request_id,
@@ -472,9 +460,7 @@ class WorkshopMCPServer:
         if not file_path and not source_code:
             return self._error_response(
                 request_id,
-                JsonRpcError(
-                    -32602, "Either file_path or source_code must be provided"
-                ),
+                JsonRpcError(-32602, "Either file_path or source_code must be provided"),
             )
         if file_path and source_code:
             return self._error_response(
@@ -574,7 +560,7 @@ class WorkshopMCPServer:
                 request_id,
                 JsonRpcError(-32602, str(exc)),
             )
-        except Exception as exc:
+        except Exception:
             logger.exception("Error executing performance_check")
             return self._error_response(
                 request_id,
@@ -585,13 +571,11 @@ class WorkshopMCPServer:
                 ),
             )
 
-    def _success_response(
-        self, request_id: Any, result: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def _success_response(self, request_id: Any, result: dict[str, Any]) -> dict[str, Any]:
         return {"jsonrpc": JSONRPC_VERSION, "id": request_id, "result": result}
 
-    def _error_response(self, request_id: Any, error: JsonRpcError) -> Dict[str, Any]:
-        payload: Dict[str, Any] = {
+    def _error_response(self, request_id: Any, error: JsonRpcError) -> dict[str, Any]:
+        payload: dict[str, Any] = {
             "jsonrpc": JSONRPC_VERSION,
             "id": request_id,
             "error": {"code": error.code, "message": error.message},

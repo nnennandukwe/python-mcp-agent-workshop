@@ -2,9 +2,6 @@
 
 import json
 from io import BytesIO
-from pathlib import Path
-
-import pytest
 
 from workshop_mcp.server import WorkshopMCPServer
 
@@ -148,10 +145,7 @@ for user in User.objects.all():
 
         # Should detect N+1 query
         assert result_data["summary"]["total_issues"] >= 1
-        assert any(
-            issue["category"] == "n_plus_one_query"
-            for issue in result_data["issues"]
-        )
+        assert any(issue["category"] == "n_plus_one_query" for issue in result_data["issues"])
 
     def test_performance_check_with_clean_code(self):
         """Test performance check with code that has no issues."""
@@ -318,7 +312,7 @@ class TestMCPServerFraming:
 
         request_json = json.dumps(request)
         request_bytes = request_json.encode("utf-8")
-        request_message = f"Content-Length: {len(request_bytes)}\r\n\r\n".encode("utf-8") + request_bytes
+        request_message = f"Content-Length: {len(request_bytes)}\r\n\r\n".encode() + request_bytes
 
         # Create mock stdin and stdout
         stdin = BytesIO(request_message)
@@ -335,7 +329,7 @@ class TestMCPServerFraming:
 
         # Extract the JSON response (after Content-Length header)
         header_end = response_data.find(b"\r\n\r\n")
-        response_json = response_data[header_end + 4:].decode("utf-8")
+        response_json = response_data[header_end + 4 :].decode("utf-8")
         response = json.loads(response_json)
 
         assert response["jsonrpc"] == "2.0"
@@ -348,10 +342,7 @@ class TestMCPServerFraming:
 
         # Should detect blocking I/O in async
         assert result_data["summary"]["total_issues"] >= 1
-        assert any(
-            issue["category"] == "blocking_io_in_async"
-            for issue in result_data["issues"]
-        )
+        assert any(issue["category"] == "blocking_io_in_async" for issue in result_data["issues"])
 
 
 class TestPathValidationIntegration:
@@ -552,5 +543,7 @@ class TestPathValidationIntegration:
             assert "error" in response, f"Path {path} should be rejected"
             error_msg = response["error"]["message"]
             # Error message should be generic - no path details
-            assert "etc" not in error_msg.lower() or error_msg == "Path is outside allowed directories"
+            assert (
+                "etc" not in error_msg.lower() or error_msg == "Path is outside allowed directories"
+            )
             assert "passwd" not in error_msg.lower()

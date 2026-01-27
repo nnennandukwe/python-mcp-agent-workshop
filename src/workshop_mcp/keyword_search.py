@@ -8,16 +8,15 @@ supporting multiple text file formats with comprehensive error handling and stat
 import asyncio
 import logging
 import os
-import regex
 from fnmatch import fnmatch
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 
 import aiofiles
+import regex
 
 from workshop_mcp.security import (
     RegexAbortError,
-    RegexValidationError,
     validate_pattern,
 )
 
@@ -33,7 +32,7 @@ class KeywordSearchTool:
     """
 
     # Supported text file extensions
-    TEXT_EXTENSIONS: Set[str] = {
+    TEXT_EXTENSIONS: set[str] = {
         ".py",
         ".java",
         ".js",
@@ -69,13 +68,13 @@ class KeywordSearchTool:
     async def execute(
         self,
         keyword: str,
-        root_paths: List[str],
+        root_paths: list[str],
         *,
         case_insensitive: bool = False,
         use_regex: bool = False,
-        include_patterns: Optional[List[str]] = None,
-        exclude_patterns: Optional[List[str]] = None,
-    ) -> Dict[str, Any]:
+        include_patterns: list[str] | None = None,
+        exclude_patterns: list[str] | None = None,
+    ) -> dict[str, Any]:
         """
         Execute keyword search across multiple root paths.
 
@@ -119,7 +118,7 @@ class KeywordSearchTool:
         pattern = self._build_pattern(keyword, case_insensitive, use_regex)
 
         # Initialize result structure
-        result: Dict[str, Any] = {
+        result: dict[str, Any] = {
             "keyword": keyword,
             "root_paths": root_paths,
             "options": {
@@ -140,7 +139,7 @@ class KeywordSearchTool:
         }
 
         # Track skipped files due to timeout
-        skipped_files: List[str] = []
+        skipped_files: list[str] = []
 
         # Search each root path
         search_tasks = []
@@ -209,12 +208,12 @@ class KeywordSearchTool:
         self,
         root_path: Path,
         keyword: str,
-        pattern: Optional[regex.Pattern[str]],
-        result: Dict[str, Any],
-        include_patterns: Optional[List[str]],
-        exclude_patterns: Optional[List[str]],
+        pattern: regex.Pattern[str] | None,
+        result: dict[str, Any],
+        include_patterns: list[str] | None,
+        exclude_patterns: list[str] | None,
         case_insensitive: bool,
-        skipped_files: List[str],
+        skipped_files: list[str],
     ) -> None:
         """
         Recursively search a directory for keyword occurrences.
@@ -238,7 +237,8 @@ class KeywordSearchTool:
                 # Modify dirnames in-place to prevent descent into excluded dirs
                 if exclude_patterns:
                     dirnames[:] = [
-                        d for d in dirnames
+                        d
+                        for d in dirnames
                         if not self._should_exclude_dir(d, dirpath, exclude_patterns)
                     ]
 
@@ -247,14 +247,17 @@ class KeywordSearchTool:
 
                     if not self._is_text_file(file_path):
                         continue
-                    if not self._matches_filters(
-                        file_path, include_patterns, exclude_patterns
-                    ):
+                    if not self._matches_filters(file_path, include_patterns, exclude_patterns):
                         continue
 
                     search_tasks.append(
                         self._search_file(
-                            file_path, keyword, pattern, result, case_insensitive, skipped_files
+                            file_path,
+                            keyword,
+                            pattern,
+                            result,
+                            case_insensitive,
+                            skipped_files,
                         )
                     )
 
@@ -265,9 +268,7 @@ class KeywordSearchTool:
                 await asyncio.gather(*batch, return_exceptions=True)
 
         except PermissionError as e:
-            self.logger.warning(
-                f"Permission denied accessing directory {root_path}: {e}"
-            )
+            self.logger.warning(f"Permission denied accessing directory {root_path}: {e}")
             result["summary"]["files_with_errors"] += 1
         except Exception as e:
             self.logger.error(f"Error searching directory {root_path}: {e}")
@@ -277,10 +278,10 @@ class KeywordSearchTool:
         self,
         file_path: Path,
         keyword: str,
-        pattern: Optional[regex.Pattern[str]],
-        result: Dict[str, Any],
+        pattern: regex.Pattern[str] | None,
+        result: dict[str, Any],
         case_insensitive: bool,
-        skipped_files: List[str],
+        skipped_files: list[str],
     ) -> None:
         """
         Search a single file for keyword occurrences.
@@ -296,9 +297,7 @@ class KeywordSearchTool:
         file_path_str = str(file_path)
 
         try:
-            async with aiofiles.open(
-                file_path, "r", encoding="utf-8", errors="ignore"
-            ) as file:
+            async with aiofiles.open(file_path, encoding="utf-8", errors="ignore") as file:
                 content = await file.read()
 
                 try:
@@ -307,9 +306,7 @@ class KeywordSearchTool:
                     )
                 except TimeoutError:
                     # Regex operation timed out - skip this file and continue
-                    self.logger.warning(
-                        f"Regex timeout on file: {file_path_str}"
-                    )
+                    self.logger.warning(f"Regex timeout on file: {file_path_str}")
                     skipped_files.append(file_path_str)
                     return
 
@@ -359,7 +356,7 @@ class KeywordSearchTool:
 
     def _build_pattern(
         self, keyword: str, case_insensitive: bool, use_regex: bool
-    ) -> Optional[regex.Pattern[str]]:
+    ) -> regex.Pattern[str] | None:
         if not use_regex:
             return None
 
@@ -373,7 +370,7 @@ class KeywordSearchTool:
         self,
         content: str,
         keyword: str,
-        pattern: Optional[regex.Pattern[str]],
+        pattern: regex.Pattern[str] | None,
         case_insensitive: bool,
     ) -> int:
         """
@@ -413,7 +410,7 @@ class KeywordSearchTool:
         self,
         dirname: str,
         parent_path: str,
-        exclude_patterns: List[str],
+        exclude_patterns: list[str],
     ) -> bool:
         """Check if a directory should be excluded from traversal."""
         dir_path = Path(parent_path) / dirname
@@ -427,8 +424,8 @@ class KeywordSearchTool:
     def _matches_filters(
         self,
         file_path: Path,
-        include_patterns: Optional[List[str]],
-        exclude_patterns: Optional[List[str]],
+        include_patterns: list[str] | None,
+        exclude_patterns: list[str] | None,
     ) -> bool:
         file_path_str = file_path.as_posix()
         file_name = file_path.name
@@ -449,7 +446,7 @@ class KeywordSearchTool:
 
         return True
 
-    def _calculate_summary(self, result: Dict[str, Any]) -> None:
+    def _calculate_summary(self, result: dict[str, Any]) -> None:
         """
         Calculate summary statistics for the search results.
 

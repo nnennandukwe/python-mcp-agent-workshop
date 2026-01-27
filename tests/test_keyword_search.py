@@ -6,10 +6,8 @@ scenarios to ensure robust keyword search implementation.
 """
 
 import asyncio
-import os
 import tempfile
 from pathlib import Path
-from typing import Any, Dict
 
 import pytest
 import pytest_asyncio
@@ -122,9 +120,7 @@ def nested_world():
 
         # Verify specific file results
         files_with_world = [
-            file_path
-            for file_path, data in result["files"].items()
-            if data["occurrences"] > 0
+            file_path for file_path, data in result["files"].items() if data["occurrences"] > 0
         ]
         assert len(files_with_world) > 0
 
@@ -189,13 +185,9 @@ def nested_world():
         )
 
     @pytest.mark.asyncio
-    async def test_regex_option(
-        self, search_tool: KeywordSearchTool, temp_test_directory: Path
-    ):
+    async def test_regex_option(self, search_tool: KeywordSearchTool, temp_test_directory: Path):
         """Test that regex search finds pattern matches."""
-        result = await search_tool.execute(
-            r"w.rld", [str(temp_test_directory)], use_regex=True
-        )
+        result = await search_tool.execute(r"w.rld", [str(temp_test_directory)], use_regex=True)
 
         assert result["summary"]["total_occurrences"] > 0
 
@@ -208,15 +200,13 @@ def nested_world():
 
         # Pattern with nested quantifiers that could cause catastrophic backtracking
         dangerous_patterns = [
-            r"(a+)+",      # Classic ReDoS pattern
-            r"(.*)*",      # Nested star quantifiers
+            r"(a+)+",  # Classic ReDoS pattern
+            r"(.*)*",  # Nested star quantifiers
         ]
 
         for pattern in dangerous_patterns:
             with pytest.raises(RegexValidationError, match="nested quantifiers"):
-                await search_tool.execute(
-                    pattern, [str(temp_test_directory)], use_regex=True
-                )
+                await search_tool.execute(pattern, [str(temp_test_directory)], use_regex=True)
 
     @pytest.mark.asyncio
     async def test_include_exclude_patterns(
@@ -228,18 +218,12 @@ def nested_world():
         )
 
         assert include_result["summary"]["total_files_searched"] > 0
-        assert all(
-            file_path.endswith(".md")
-            for file_path in include_result["files"].keys()
-        )
+        assert all(file_path.endswith(".md") for file_path in include_result["files"].keys())
 
         exclude_result = await search_tool.execute(
             "world", [str(temp_test_directory)], exclude_patterns=["*.md"]
         )
-        assert all(
-            not file_path.endswith(".md")
-            for file_path in exclude_result["files"].keys()
-        )
+        assert all(not file_path.endswith(".md") for file_path in exclude_result["files"].keys())
 
     @pytest.mark.asyncio
     async def test_multiple_root_paths(
@@ -252,14 +236,10 @@ def nested_world():
 
             # Create additional test file
             test_file = temp_path2 / "additional.py"
-            test_file.write_text(
-                "# Additional file with world keyword\nworld_var = 'world'"
-            )
+            test_file.write_text("# Additional file with world keyword\nworld_var = 'world'")
 
             # Search both directories
-            result = await search_tool.execute(
-                "world", [str(temp_test_directory), str(temp_path2)]
-            )
+            result = await search_tool.execute("world", [str(temp_test_directory), str(temp_path2)])
 
             # Verify both paths are included
             assert str(temp_test_directory) in result["root_paths"]
@@ -315,9 +295,7 @@ def nested_world():
         self, search_tool: KeywordSearchTool, temp_test_directory: Path
     ):
         """Test behavior when no matches are found."""
-        result = await search_tool.execute(
-            "nonexistent_keyword_xyz", [str(temp_test_directory)]
-        )
+        result = await search_tool.execute("nonexistent_keyword_xyz", [str(temp_test_directory)])
 
         # Verify structure is still correct
         assert result["summary"]["total_files_searched"] > 0
@@ -337,9 +315,7 @@ def nested_world():
 
         # Check that binary files are not included in results
         binary_files = [
-            file_path
-            for file_path in result["files"].keys()
-            if file_path.endswith(".bin")
+            file_path for file_path in result["files"].keys() if file_path.endswith(".bin")
         ]
         assert len(binary_files) == 0
 
@@ -347,10 +323,7 @@ def nested_world():
         text_files = [
             file_path
             for file_path in result["files"].keys()
-            if any(
-                file_path.endswith(ext)
-                for ext in [".py", ".java", ".txt", ".json", ".md"]
-            )
+            if any(file_path.endswith(ext) for ext in [".py", ".java", ".txt", ".json", ".md"])
         ]
         assert len(text_files) > 0
 
@@ -363,7 +336,7 @@ def nested_world():
 
         # Find the empty file in results
         empty_file_path = None
-        for file_path, data in result["files"].items():
+        for file_path, _data in result["files"].items():
             if file_path.endswith("empty_file.py"):
                 empty_file_path = file_path
                 break
@@ -403,9 +376,7 @@ def nested_world():
         assert summary["total_occurrences"] == calculated_total
 
         # Verify files with matches count
-        calculated_matches = sum(
-            1 for data in result["files"].values() if data["occurrences"] > 0
-        )
+        calculated_matches = sum(1 for data in result["files"].values() if data["occurrences"] > 0)
         assert summary["total_files_with_matches"] == calculated_matches
 
         # Verify match percentage calculation
@@ -420,10 +391,7 @@ def nested_world():
         expected_average = (
             (calculated_total / calculated_matches) if calculated_matches > 0 else 0.0
         )
-        assert (
-            abs(summary["average_occurrences_per_matching_file"] - expected_average)
-            < 0.01
-        )
+        assert abs(summary["average_occurrences_per_matching_file"] - expected_average) < 0.01
 
     @pytest.mark.asyncio
     async def test_most_frequent_file_identification(
@@ -441,7 +409,7 @@ def nested_world():
             assert result["files"][most_frequent_file]["occurrences"] == max_occurrences
 
             # Verify no other file has more occurrences
-            for file_path, data in result["files"].items():
+            for _file_path, data in result["files"].items():
                 assert data["occurrences"] <= max_occurrences
 
     @pytest.mark.asyncio
@@ -450,7 +418,7 @@ def nested_world():
         # Create multiple temporary directories with files
         temp_dirs = []
         try:
-            for i in range(3):
+            for _i in range(3):
                 temp_dir = tempfile.mkdtemp()
                 temp_path = Path(temp_dir)
                 temp_dirs.append(temp_path)
@@ -458,14 +426,10 @@ def nested_world():
                 # Create multiple files in each directory
                 for j in range(5):
                     test_file = temp_path / f"test_{j}.py"
-                    test_file.write_text(
-                        f"# File {j} with world keyword\nworld_var_{j} = 'world'"
-                    )
+                    test_file.write_text(f"# File {j} with world keyword\nworld_var_{j} = 'world'")
 
             # Run concurrent searches
-            search_tasks = [
-                search_tool.execute("world", [str(temp_dir)]) for temp_dir in temp_dirs
-            ]
+            search_tasks = [search_tool.execute("world", [str(temp_dir)]) for temp_dir in temp_dirs]
 
             results = await asyncio.gather(*search_tasks)
 
@@ -502,9 +466,7 @@ def nested_world():
         ]
 
         for file_path in supported_files:
-            assert search_tool._is_text_file(
-                file_path
-            ), f"Should support {file_path.suffix}"
+            assert search_tool._is_text_file(file_path), f"Should support {file_path.suffix}"
 
         # Test unsupported extensions
         unsupported_files = [
@@ -518,9 +480,9 @@ def nested_world():
         ]
 
         for file_path in unsupported_files:
-            assert not search_tool._is_text_file(
-                file_path
-            ), f"Should not support {file_path.suffix}"
+            assert not search_tool._is_text_file(file_path), (
+                f"Should not support {file_path.suffix}"
+            )
 
 
 class TestReDoSProtection:
@@ -549,9 +511,7 @@ class TestReDoSProtection:
             await search_tool.execute(long_pattern, [str(tmp_path)], use_regex=True)
 
     @pytest.mark.asyncio
-    async def test_rejects_redos_pattern(
-        self, search_tool: KeywordSearchTool, tmp_path: Path
-    ):
+    async def test_rejects_redos_pattern(self, search_tool: KeywordSearchTool, tmp_path: Path):
         """Test that known ReDoS patterns are rejected."""
         from workshop_mcp.security import RegexValidationError
 
@@ -564,18 +524,14 @@ class TestReDoSProtection:
             await search_tool.execute("(a+)+", [str(tmp_path)], use_regex=True)
 
     @pytest.mark.asyncio
-    async def test_accepts_valid_regex(
-        self, search_tool: KeywordSearchTool, tmp_path: Path
-    ):
+    async def test_accepts_valid_regex(self, search_tool: KeywordSearchTool, tmp_path: Path):
         """Test that valid regex patterns work normally."""
         # Create a test file
         test_file = tmp_path / "test.py"
         test_file.write_text("hello world\ntest123\nfoo456")
 
         # Valid regex pattern
-        result = await search_tool.execute(
-            r"[a-z]+\d+", [str(tmp_path)], use_regex=True
-        )
+        result = await search_tool.execute(r"[a-z]+\d+", [str(tmp_path)], use_regex=True)
 
         # Should find "test123" and "foo456"
         assert result["summary"]["total_occurrences"] >= 2
@@ -695,9 +651,7 @@ class TestReDoSProtection:
         test_file.write_text("(a+)+ test content")
 
         # Pattern that would be rejected in regex mode should work as literal string
-        result = await search_tool.execute(
-            "(a+)+", [str(tmp_path)], use_regex=False
-        )
+        result = await search_tool.execute("(a+)+", [str(tmp_path)], use_regex=False)
 
         # Should find the literal string "(a+)+"
         assert result["summary"]["total_occurrences"] == 1

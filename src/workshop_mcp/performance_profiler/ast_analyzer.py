@@ -1,9 +1,9 @@
 """AST analyzer for extracting code structure from Python files using Astroid."""
 
-import astroid
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Union
+
+import astroid
 
 
 @dataclass
@@ -14,11 +14,11 @@ class FunctionInfo:
     line_number: int
     end_line_number: int
     is_async: bool
-    parameters: List[str]
-    decorators: List[str]
-    return_annotation: Optional[str]
-    docstring: Optional[str]
-    inferred_types: Dict[str, str]  # Parameter name -> inferred type (when available)
+    parameters: list[str]
+    decorators: list[str]
+    return_annotation: str | None
+    docstring: str | None
+    inferred_types: dict[str, str]  # Parameter name -> inferred type (when available)
 
 
 @dataclass
@@ -28,7 +28,7 @@ class LoopInfo:
     type: str  # 'for' or 'while'
     line_number: int
     end_line_number: int
-    parent_function: Optional[str]
+    parent_function: str | None
     nesting_level: int
     is_in_async_function: bool
 
@@ -38,11 +38,11 @@ class ImportInfo:
     """Information about an import statement."""
 
     module: str
-    names: List[str]
+    names: list[str]
     line_number: int
     is_from_import: bool
-    aliases: Dict[str, str]  # Maps imported name to alias
-    resolved_module: Optional[str]  # Fully resolved module path when available
+    aliases: dict[str, str]  # Maps imported name to alias
+    resolved_module: str | None  # Fully resolved module path when available
 
 
 @dataclass
@@ -51,16 +51,16 @@ class CallInfo:
 
     function_name: str
     line_number: int
-    parent_function: Optional[str]
+    parent_function: str | None
     is_in_loop: bool
     is_in_async_function: bool
-    inferred_callable: Optional[str]  # Fully qualified name when inferred
+    inferred_callable: str | None  # Fully qualified name when inferred
 
 
 class ASTAnalyzer:
     """Analyzes Python code using Astroid for semantic understanding."""
 
-    def __init__(self, source_code: Optional[str] = None, file_path: Optional[str] = None):
+    def __init__(self, source_code: str | None = None, file_path: str | None = None):
         """
         Initialize the AST analyzer with Astroid.
 
@@ -93,12 +93,12 @@ class ASTAnalyzer:
             # Re-raise as SyntaxError for backwards compatibility with tests
             raise SyntaxError(str(e)) from e
 
-        self._functions: Optional[List[FunctionInfo]] = None
-        self._loops: Optional[List[LoopInfo]] = None
-        self._imports: Optional[List[ImportInfo]] = None
-        self._calls: Optional[List[CallInfo]] = None
+        self._functions: list[FunctionInfo] | None = None
+        self._loops: list[LoopInfo] | None = None
+        self._imports: list[ImportInfo] | None = None
+        self._calls: list[CallInfo] | None = None
 
-    def get_functions(self) -> List[FunctionInfo]:
+    def get_functions(self) -> list[FunctionInfo]:
         """
         Extract all function definitions from the code.
 
@@ -116,7 +116,7 @@ class ASTAnalyzer:
         self._functions = functions
         return functions
 
-    def get_loops(self) -> List[LoopInfo]:
+    def get_loops(self) -> list[LoopInfo]:
         """
         Extract all loop constructs from the code.
 
@@ -131,7 +131,7 @@ class ASTAnalyzer:
         self._loops = loops
         return loops
 
-    def get_imports(self) -> List[ImportInfo]:
+    def get_imports(self) -> list[ImportInfo]:
         """
         Extract all import statements from the code.
 
@@ -179,7 +179,7 @@ class ASTAnalyzer:
         self._imports = imports
         return imports
 
-    def get_calls(self) -> List[CallInfo]:
+    def get_calls(self) -> list[CallInfo]:
         """
         Extract all function calls from the code.
 
@@ -194,7 +194,7 @@ class ASTAnalyzer:
         self._calls = calls
         return calls
 
-    def get_async_functions(self) -> List[FunctionInfo]:
+    def get_async_functions(self) -> list[FunctionInfo]:
         """
         Get only async function definitions.
 
@@ -203,7 +203,7 @@ class ASTAnalyzer:
         """
         return [f for f in self.get_functions() if f.is_async]
 
-    def get_functions_in_range(self, start_line: int, end_line: int) -> List[FunctionInfo]:
+    def get_functions_in_range(self, start_line: int, end_line: int) -> list[FunctionInfo]:
         """
         Get functions defined within a specific line range.
 
@@ -214,13 +214,9 @@ class ASTAnalyzer:
         Returns:
             List of FunctionInfo objects within the range
         """
-        return [
-            f
-            for f in self.get_functions()
-            if start_line <= f.line_number <= end_line
-        ]
+        return [f for f in self.get_functions() if start_line <= f.line_number <= end_line]
 
-    def get_loops_in_function(self, function_name: str) -> List[LoopInfo]:
+    def get_loops_in_function(self, function_name: str) -> list[LoopInfo]:
         """
         Get all loops within a specific function.
 
@@ -230,11 +226,7 @@ class ASTAnalyzer:
         Returns:
             List of LoopInfo objects within the function
         """
-        return [
-            loop
-            for loop in self.get_loops()
-            if loop.parent_function == function_name
-        ]
+        return [loop for loop in self.get_loops() if loop.parent_function == function_name]
 
     def get_max_loop_nesting_depth(self) -> int:
         """
@@ -263,15 +255,23 @@ class ASTAnalyzer:
                 func_name_lower = call.function_name.lower()
                 if any(pattern in func_name_lower for pattern in blocking_patterns):
                     # Check if it's not an async version (aiofiles, asyncio.sleep, etc.)
-                    if not (call.function_name.startswith(("aio", "async")) or
-                           "asyncio" in func_name_lower):
+                    if not (
+                        call.function_name.startswith(("aio", "async"))
+                        or "asyncio" in func_name_lower
+                    ):
                         return True
         return False
 
-    def _extract_function_info(self, node: Union[astroid.FunctionDef, astroid.AsyncFunctionDef]) -> FunctionInfo:
+    def _extract_function_info(
+        self, node: astroid.FunctionDef | astroid.AsyncFunctionDef
+    ) -> FunctionInfo:
         """Extract metadata from a function definition node."""
         parameters = [arg.name for arg in node.args.args]
-        decorators = [self._get_decorator_name(dec) for dec in node.decorators.nodes] if node.decorators else []
+        decorators = (
+            [self._get_decorator_name(dec) for dec in node.decorators.nodes]
+            if node.decorators
+            else []
+        )
 
         return_annotation = None
         if node.returns:
@@ -282,7 +282,7 @@ class ASTAnalyzer:
         # Attempt type inference for parameters (simplified)
         inferred_types = {}
         for arg in node.args.args:
-            if hasattr(arg, 'annotation') and arg.annotation:
+            if hasattr(arg, "annotation") and arg.annotation:
                 inferred_types[arg.name] = arg.annotation.as_string()
 
         return FunctionInfo(
@@ -313,8 +313,8 @@ class ASTAnalyzer:
     def _extract_loops_recursive(
         self,
         node: astroid.NodeNG,
-        loops: List[LoopInfo],
-        parent_function: Optional[str],
+        loops: list[LoopInfo],
+        parent_function: str | None,
         nesting_level: int,
         is_in_async: bool,
     ) -> None:
@@ -355,8 +355,8 @@ class ASTAnalyzer:
     def _extract_calls_recursive(
         self,
         node: astroid.NodeNG,
-        calls: List[CallInfo],
-        parent_function: Optional[str],
+        calls: list[CallInfo],
+        parent_function: str | None,
         is_in_loop: bool,
         is_in_async: bool,
     ) -> None:
@@ -397,7 +397,7 @@ class ASTAnalyzer:
                 child, calls, current_function, current_in_loop, current_is_async
             )
 
-    def _get_call_name(self, node: astroid.NodeNG) -> Optional[str]:
+    def _get_call_name(self, node: astroid.NodeNG) -> str | None:
         """Extract the name of a function being called."""
         if isinstance(node, astroid.Name):
             return node.name
@@ -405,7 +405,7 @@ class ASTAnalyzer:
             return node.as_string()
         return None
 
-    def _infer_callable_name(self, node: astroid.NodeNG) -> Optional[str]:
+    def _infer_callable_name(self, node: astroid.NodeNG) -> str | None:
         """
         Try to infer the fully qualified name of a callable.
 
@@ -413,7 +413,7 @@ class ASTAnalyzer:
         """
         try:
             inferred = next(node.infer(), None)
-            if inferred and hasattr(inferred, 'qname'):
+            if inferred and hasattr(inferred, "qname"):
                 return inferred.qname()
         except (astroid.InferenceError, StopIteration):
             pass
@@ -431,4 +431,4 @@ class ASTAnalyzer:
             Source code segment as a string
         """
         lines = self.source_code.splitlines()
-        return "\n".join(lines[line_start - 1:line_end])
+        return "\n".join(lines[line_start - 1 : line_end])

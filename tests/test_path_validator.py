@@ -17,7 +17,7 @@ class TestPathValidatorTraversalRejection:
 
     def test_rejects_simple_traversal(self):
         """Validate rejects paths containing ../ traversal sequences."""
-        from workshop_mcp.security import PathValidator, PathValidationError
+        from workshop_mcp.security import PathValidationError, PathValidator
 
         validator = PathValidator(allowed_roots=[Path("/home/user/project")])
 
@@ -29,7 +29,7 @@ class TestPathValidatorTraversalRejection:
 
     def test_rejects_nested_traversal(self):
         """Validate rejects deeply nested traversal attempts."""
-        from workshop_mcp.security import PathValidator, PathValidationError
+        from workshop_mcp.security import PathValidationError, PathValidator
 
         validator = PathValidator(allowed_roots=[Path("/home/user/project")])
 
@@ -54,7 +54,7 @@ class TestPathValidatorTraversalRejection:
 
     def test_rejects_encoded_traversal(self):
         """Validate rejects URL-encoded or otherwise obfuscated traversal."""
-        from workshop_mcp.security import PathValidator, PathValidationError
+        from workshop_mcp.security import PathValidationError, PathValidator
 
         validator = PathValidator(allowed_roots=[Path("/home/user/project")])
 
@@ -68,7 +68,7 @@ class TestPathValidatorAbsolutePaths:
 
     def test_rejects_absolute_path_outside_root(self):
         """Validate rejects absolute paths outside allowed roots."""
-        from workshop_mcp.security import PathValidator, PathValidationError
+        from workshop_mcp.security import PathValidationError, PathValidator
 
         validator = PathValidator(allowed_roots=[Path("/home/user/project")])
 
@@ -104,9 +104,7 @@ class TestPathValidatorAbsolutePaths:
                 file1.touch()
                 file2.touch()
 
-                validator = PathValidator(
-                    allowed_roots=[Path(tmpdir1), Path(tmpdir2)]
-                )
+                validator = PathValidator(allowed_roots=[Path(tmpdir1), Path(tmpdir2)])
 
                 # Both should be accepted
                 assert validator.validate(str(file1)) == file1.resolve()
@@ -192,7 +190,7 @@ class TestPathValidatorErrorMessages:
 
     def test_error_message_is_generic_for_traversal(self):
         """Error message does not contain the attempted path."""
-        from workshop_mcp.security import PathValidator, PathValidationError
+        from workshop_mcp.security import PathValidationError, PathValidator
 
         validator = PathValidator(allowed_roots=[Path("/safe/root")])
 
@@ -208,7 +206,7 @@ class TestPathValidatorErrorMessages:
 
     def test_error_message_is_generic_for_absolute(self):
         """Error message for absolute path does not leak path details."""
-        from workshop_mcp.security import PathValidator, PathValidationError
+        from workshop_mcp.security import PathValidationError, PathValidator
 
         validator = PathValidator(allowed_roots=[Path("/safe/root")])
 
@@ -242,7 +240,7 @@ class TestPathValidatorMultiple:
 
     def test_fails_fast_on_invalid_path(self):
         """validate_multiple raises on first invalid path."""
-        from workshop_mcp.security import PathValidator, PathValidationError
+        from workshop_mcp.security import PathValidationError, PathValidator
 
         with tempfile.TemporaryDirectory() as tmpdir:
             valid_file = Path(tmpdir) / "valid.py"
@@ -269,7 +267,7 @@ class TestPathValidatorExists:
 
     def test_raises_for_nonexistent_file(self):
         """validate_exists raises PathValidationError for nonexistent path."""
-        from workshop_mcp.security import PathValidator, PathValidationError
+        from workshop_mcp.security import PathValidationError, PathValidator
 
         with tempfile.TemporaryDirectory() as tmpdir:
             validator = PathValidator(allowed_roots=[Path(tmpdir)])
@@ -281,7 +279,7 @@ class TestPathValidatorExists:
 
     def test_raises_for_directory_when_must_be_file(self):
         """validate_exists raises when path is directory but must_be_file=True."""
-        from workshop_mcp.security import PathValidator, PathValidationError
+        from workshop_mcp.security import PathValidationError, PathValidator
 
         with tempfile.TemporaryDirectory() as tmpdir:
             subdir = Path(tmpdir) / "subdir"
@@ -326,7 +324,7 @@ class TestPathValidatorEdgeCases:
 
     def test_rejects_symlink_escape(self):
         """Validate rejects symlinks that point outside allowed roots."""
-        from workshop_mcp.security import PathValidator, PathValidationError
+        from workshop_mcp.security import PathValidationError, PathValidator
 
         with tempfile.TemporaryDirectory() as allowed_dir:
             with tempfile.TemporaryDirectory() as forbidden_dir:
@@ -346,7 +344,7 @@ class TestPathValidatorEdgeCases:
 
     def test_handles_empty_path(self):
         """Validate handles empty path string."""
-        from workshop_mcp.security import PathValidator, PathValidationError
+        from workshop_mcp.security import PathValidationError, PathValidator
 
         with tempfile.TemporaryDirectory() as tmpdir:
             validator = PathValidator(allowed_roots=[Path(tmpdir)])
@@ -384,10 +382,7 @@ class TestSecurityExceptionHierarchy:
 
     def test_path_validation_error_inherits_from_security_error(self):
         """PathValidationError should inherit from SecurityValidationError."""
-        from workshop_mcp.security import (
-            PathValidationError,
-            SecurityValidationError,
-        )
+        from workshop_mcp.security import PathValidationError, SecurityValidationError
 
         assert issubclass(PathValidationError, SecurityValidationError)
         assert issubclass(SecurityValidationError, Exception)

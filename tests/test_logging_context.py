@@ -6,7 +6,6 @@ Tests follow TDD cycle: RED (write failing tests) -> GREEN (implement) -> REFACT
 
 import logging
 import re
-from unittest import mock
 
 import pytest
 

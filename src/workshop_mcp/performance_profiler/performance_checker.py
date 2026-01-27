@@ -1,10 +1,8 @@
 """Performance checker for detecting anti-patterns in Python code."""
 
 from collections import Counter
-from pathlib import Path
-from typing import List, Optional
 
-from .ast_analyzer import ASTAnalyzer, CallInfo
+from .ast_analyzer import ASTAnalyzer
 from .patterns import (
     IssueCategory,
     PerformanceIssue,
@@ -23,7 +21,7 @@ from .patterns import (
 class PerformanceChecker:
     """Analyzes Python code for performance anti-patterns."""
 
-    def __init__(self, source_code: Optional[str] = None, file_path: Optional[str] = None):
+    def __init__(self, source_code: str | None = None, file_path: str | None = None):
         """
         Initialize the performance checker.
 
@@ -37,9 +35,9 @@ class PerformanceChecker:
             FileNotFoundError: If file_path doesn't exist
         """
         self.analyzer = ASTAnalyzer(source_code=source_code, file_path=file_path)
-        self._issues: Optional[List[PerformanceIssue]] = None
+        self._issues: list[PerformanceIssue] | None = None
 
-    def check_all(self) -> List[PerformanceIssue]:
+    def check_all(self) -> list[PerformanceIssue]:
         """
         Run all performance checks on the code.
 
@@ -69,7 +67,7 @@ class PerformanceChecker:
         self._issues = issues
         return issues
 
-    def check_n_plus_one_queries(self) -> List[PerformanceIssue]:
+    def check_n_plus_one_queries(self) -> list[PerformanceIssue]:
         """
         Detect N+1 query anti-patterns.
 
@@ -85,7 +83,9 @@ class PerformanceChecker:
         # Find database queries inside loops
         for call in calls:
             if call.is_in_loop and is_orm_query(call.function_name, call.inferred_callable):
-                orm_type = get_orm_type(call.inferred_callable) or get_orm_type_from_function_name(call.function_name)
+                orm_type = get_orm_type(call.inferred_callable) or get_orm_type_from_function_name(
+                    call.function_name
+                )
 
                 # Determine suggestion based on ORM type
                 if orm_type == "django":
@@ -105,9 +105,7 @@ class PerformanceChecker:
                         "or using a JOIN query to reduce database round-trips"
                     )
 
-                code_snippet = self.analyzer.get_source_segment(
-                    call.line_number, call.line_number
-                )
+                code_snippet = self.analyzer.get_source_segment(call.line_number, call.line_number)
 
                 issue = PerformanceIssue(
                     category=IssueCategory.N_PLUS_ONE_QUERY,
@@ -123,7 +121,7 @@ class PerformanceChecker:
 
         return issues
 
-    def check_blocking_io_in_async(self) -> List[PerformanceIssue]:
+    def check_blocking_io_in_async(self) -> list[PerformanceIssue]:
         """
         Detect blocking I/O operations in async functions.
 
@@ -146,9 +144,7 @@ class PerformanceChecker:
                 if alternative:
                     suggestion = f"Replace with {alternative} and use await"
 
-                code_snippet = self.analyzer.get_source_segment(
-                    call.line_number, call.line_number
-                )
+                code_snippet = self.analyzer.get_source_segment(call.line_number, call.line_number)
 
                 issue = PerformanceIssue(
                     category=IssueCategory.BLOCKING_IO_IN_ASYNC,
@@ -164,7 +160,7 @@ class PerformanceChecker:
 
         return issues
 
-    def check_inefficient_loops(self) -> List[PerformanceIssue]:
+    def check_inefficient_loops(self) -> list[PerformanceIssue]:
         """
         Detect inefficient patterns in loops.
 
@@ -184,9 +180,7 @@ class PerformanceChecker:
             if call.is_in_loop and is_inefficient_string_op(
                 call.function_name, call.inferred_callable
             ):
-                code_snippet = self.analyzer.get_source_segment(
-                    call.line_number, call.line_number
-                )
+                code_snippet = self.analyzer.get_source_segment(call.line_number, call.line_number)
 
                 issue = PerformanceIssue(
                     category=IssueCategory.INEFFICIENT_LOOP,
@@ -208,7 +202,8 @@ class PerformanceChecker:
             for loop in loops:
                 if loop.nesting_level >= 2:  # 0-indexed, so level 2 = 3 deep
                     code_snippet = self.analyzer.get_source_segment(
-                        loop.line_number, min(loop.line_number + 2, loop.end_line_number)
+                        loop.line_number,
+                        min(loop.line_number + 2, loop.end_line_number),
                     )
 
                     issue = PerformanceIssue(
@@ -225,7 +220,7 @@ class PerformanceChecker:
 
         return issues
 
-    def check_memory_inefficiencies(self) -> List[PerformanceIssue]:
+    def check_memory_inefficiencies(self) -> list[PerformanceIssue]:
         """
         Detect memory inefficiency patterns.
 
@@ -248,20 +243,26 @@ class PerformanceChecker:
                     call.function_name, call.inferred_callable
                 )
 
-                code_snippet = self.analyzer.get_source_segment(
-                    call.line_number, call.line_number
-                )
+                code_snippet = self.analyzer.get_source_segment(call.line_number, call.line_number)
 
                 # Determine specific description based on operation type
                 operation = call.function_name
                 if "json.load" in operation:
-                    description = f"Loading entire JSON file with {operation}() loads all data into memory"
+                    description = (
+                        f"Loading entire JSON file with {operation}() loads all data into memory"
+                    )
                 elif "pickle.load" in operation:
-                    description = f"Loading entire pickle file with {operation}() loads all data into memory"
+                    description = (
+                        f"Loading entire pickle file with {operation}() loads all data into memory"
+                    )
                 elif "readlines" in operation:
-                    description = f"Reading all lines with {operation}() loads entire file into memory"
+                    description = (
+                        f"Reading all lines with {operation}() loads entire file into memory"
+                    )
                 elif "read" in operation:
-                    description = f"Reading entire file with {operation}() loads all data into memory"
+                    description = (
+                        f"Reading entire file with {operation}() loads all data into memory"
+                    )
                 else:
                     description = f"Memory-intensive operation {operation}() loads large amount of data into memory"
 
@@ -279,7 +280,7 @@ class PerformanceChecker:
 
         return issues
 
-    def get_issues_by_severity(self, severity: Severity) -> List[PerformanceIssue]:
+    def get_issues_by_severity(self, severity: Severity) -> list[PerformanceIssue]:
         """
         Get issues filtered by severity level.
 
@@ -292,7 +293,7 @@ class PerformanceChecker:
         all_issues = self.check_all()
         return [issue for issue in all_issues if issue.severity == severity]
 
-    def get_issues_by_category(self, category: IssueCategory) -> List[PerformanceIssue]:
+    def get_issues_by_category(self, category: IssueCategory) -> list[PerformanceIssue]:
         """
         Get issues filtered by category.
 
@@ -305,7 +306,7 @@ class PerformanceChecker:
         all_issues = self.check_all()
         return [issue for issue in all_issues if issue.category == category]
 
-    def get_critical_issues(self) -> List[PerformanceIssue]:
+    def get_critical_issues(self) -> list[PerformanceIssue]:
         """
         Get all critical severity issues.
 
@@ -337,12 +338,8 @@ class PerformanceChecker:
 
         summary = {
             "total_issues": len(all_issues),
-            "by_severity": {
-                s.value: severity_counts.get(s, 0) for s in Severity
-            },
-            "by_category": {
-                c.value: category_counts.get(c, 0) for c in IssueCategory
-            },
+            "by_severity": {s.value: severity_counts.get(s, 0) for s in Severity},
+            "by_category": {c.value: category_counts.get(c, 0) for c in IssueCategory},
         }
 
         return summary

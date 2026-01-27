@@ -22,7 +22,9 @@ from workshop_mcp.security.regex_validator import MAX_PATTERN_LENGTH, validate_p
 class TestExceptionHierarchy:
     """Test that regex exceptions inherit from SecurityValidationError."""
 
-    def test_regex_validation_error_inherits_from_security_validation_error(self) -> None:
+    def test_regex_validation_error_inherits_from_security_validation_error(
+        self,
+    ) -> None:
         """RegexValidationError should inherit from SecurityValidationError."""
         error = RegexValidationError("test")
         assert isinstance(error, SecurityValidationError)

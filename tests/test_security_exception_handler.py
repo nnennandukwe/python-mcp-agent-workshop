@@ -16,8 +16,6 @@ All these exceptions have intentionally safe messages that can be exposed to cli
 import logging
 from unittest.mock import patch
 
-import pytest
-
 from workshop_mcp.security import (
     RegexAbortError,
     RegexTimeoutError,
@@ -39,9 +37,7 @@ class TestRegexValidationErrorPassthrough:
         with patch.object(
             server.keyword_search_tool,
             "execute",
-            side_effect=RegexValidationError(
-                "Pattern rejected: nested quantifiers detected"
-            ),
+            side_effect=RegexValidationError("Pattern rejected: nested quantifiers detected"),
         ):
             request = {
                 "jsonrpc": "2.0",
@@ -61,10 +57,7 @@ class TestRegexValidationErrorPassthrough:
 
         assert "error" in response
         assert response["error"]["code"] == -32602  # Invalid params
-        assert (
-            response["error"]["message"]
-            == "Pattern rejected: nested quantifiers detected"
-        )
+        assert response["error"]["message"] == "Pattern rejected: nested quantifiers detected"
         # Should NOT be "Internal error"
         assert response["error"]["message"] != "Internal error"
 
@@ -337,9 +330,7 @@ class TestSecurityExceptionLogging:
         with patch.object(
             server.keyword_search_tool,
             "execute",
-            side_effect=RegexValidationError(
-                "Pattern rejected: nested quantifiers detected"
-            ),
+            side_effect=RegexValidationError("Pattern rejected: nested quantifiers detected"),
         ):
             request = {
                 "jsonrpc": "2.0",
@@ -356,12 +347,11 @@ class TestSecurityExceptionLogging:
             }
 
             with caplog.at_level(logging.WARNING):
-                response = server._handle_request(request)
+                server._handle_request(request)
 
         # Verify the error was logged
         assert any(
-            "Security validation error" in record.message
-            or "nested quantifiers" in record.message
+            "Security validation error" in record.message or "nested quantifiers" in record.message
             for record in caplog.records
         )
 
@@ -390,11 +380,10 @@ class TestSecurityExceptionLogging:
             }
 
             with caplog.at_level(logging.WARNING):
-                response = server._handle_request(request)
+                server._handle_request(request)
 
         # Verify the error was logged
         assert any(
-            "Security validation error" in record.message
-            or "timed out" in record.message
+            "Security validation error" in record.message or "timed out" in record.message
             for record in caplog.records
         )
