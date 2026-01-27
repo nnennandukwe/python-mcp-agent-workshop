@@ -366,18 +366,22 @@ class TestRequestValidation:
 
         _assert_jsonrpc_error(response, code=-32600)
 
-    def test_error_passthrough(self, server: WorkshopMCPServer) -> None:
-        """Test that error responses with no id are passed through."""
-        # This simulates receiving an error response (unusual but valid)
+    def test_error_response_ignored(self, server: WorkshopMCPServer) -> None:
+        """Test that incoming error responses receive no reply per JSON-RPC 2.0 spec."""
+        # An error response is not a request - server should not reply
         error_response = {
             "jsonrpc": "2.0",
             "error": {"code": -32000, "message": "Server error"},
         }
         message = _encode_message(error_response)
-        response = _run_server_harness(server, message)
+        stdin = io.BytesIO(message)
+        stdout = io.BytesIO()
 
-        # Should pass through the error response as-is
-        _assert_jsonrpc_error(response, code=-32000)
+        result = server.serve_once(stdin, stdout)
+
+        assert result is True
+        # No response should be written for incoming error responses
+        assert stdout.getvalue() == b""
 
     def test_initialize_with_non_dict_params(self, server: WorkshopMCPServer) -> None:
         """Test error when initialize params is not a dict."""
