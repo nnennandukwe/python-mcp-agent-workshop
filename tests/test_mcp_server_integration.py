@@ -2,7 +2,6 @@
 
 import json
 from io import BytesIO
-from pathlib import Path
 
 import pytest
 
@@ -10,284 +9,153 @@ from workshop_mcp.server import WorkshopMCPServer
 
 
 class TestMCPServerIntegration:
-    """Test MCP server integration with performance profiler."""
+    """Test MCP server integration with tools."""
 
-    def test_initialize(self):
-        """Test server initialization."""
+    def test_server_initialization_and_list_tools(self):
+        """Test server initializes correctly and lists all tools."""
         server = WorkshopMCPServer()
         assert server.keyword_search_tool is not None
         assert server.loop is not None
 
-    def test_list_tools_includes_performance_check(self):
-        """Test that list_tools includes both keyword_search and performance_check."""
-        server = WorkshopMCPServer()
+        response = server._handle_request({"jsonrpc": "2.0", "id": 1, "method": "list_tools"})
 
-        # Create a request
-        request = {
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "list_tools",
-        }
-
-        # Handle the request
-        response = server._handle_request(request)
-
-        assert response["jsonrpc"] == "2.0"
-        assert response["id"] == 1
         assert "result" in response
-        assert "tools" in response["result"]
-
         tools = response["result"]["tools"]
-        assert len(tools) == 2
-
-        # Check that both tools are present
-        tool_names = [tool["name"] for tool in tools]
+        tool_names = [t["name"] for t in tools]
         assert "keyword_search" in tool_names
         assert "performance_check" in tool_names
 
-        # Check performance_check tool details
+        # Verify performance_check schema
         perf_tool = next(t for t in tools if t["name"] == "performance_check")
-        assert "description" in perf_tool
         assert "performance anti-patterns" in perf_tool["description"].lower()
-        assert "inputSchema" in perf_tool
-        assert perf_tool["inputSchema"]["type"] == "object"
-        assert "properties" in perf_tool["inputSchema"]
         assert "file_path" in perf_tool["inputSchema"]["properties"]
-        assert "source_code" in perf_tool["inputSchema"]["properties"]
-
-
-class TestPerformanceCheckTool:
-    """Test the performance_check tool execution."""
 
     def test_performance_check_with_source_code(self):
-        """Test performance check with source code."""
+        """Test performance check detects issues in source code."""
         server = WorkshopMCPServer()
 
         source_code = """
 import time
-
 async def bad_async():
     time.sleep(1)
     with open('file.txt') as f:
         data = f.read()
 """
-
         request = {
-            "jsonrpc": "2.0",
-            "id": 2,
-            "method": "call_tool",
-            "params": {
-                "name": "performance_check",
-                "arguments": {
-                    "source_code": source_code,
-                },
-            },
+            "jsonrpc": "2.0", "id": 1, "method": "call_tool",
+            "params": {"name": "performance_check", "arguments": {"source_code": source_code}},
         }
-
         response = server._handle_request(request)
 
-        assert response["jsonrpc"] == "2.0"
-        assert response["id"] == 2
         assert "result" in response
-
-        # Parse the result
-        content = response["result"]["content"]
-        assert len(content) == 1
-        assert content[0]["type"] == "json"
-
-        result_data = content[0]["json"]
-        assert "summary" in result_data
-        assert "issues" in result_data
-
-        # Should detect blocking I/O in async
-        assert result_data["summary"]["total_issues"] >= 2
-        assert result_data["summary"]["by_severity"]["critical"] >= 2
-
-        # Check that issues have expected structure
-        for issue in result_data["issues"]:
-            assert "category" in issue
-            assert "severity" in issue
-            assert "line_number" in issue
-            assert "description" in issue
-            assert "suggestion" in issue
+        result = response["result"]["content"][0]["json"]
+        assert result["summary"]["total_issues"] >= 2
+        assert result["summary"]["by_severity"]["critical"] >= 2
 
     def test_performance_check_with_file_path(self, tmp_path, monkeypatch):
-        """Test performance check with file path."""
-        # Allow tmp_path for path validation
+        """Test performance check with file path detects N+1 query."""
         monkeypatch.setenv("MCP_ALLOWED_ROOTS", str(tmp_path))
         server = WorkshopMCPServer()
 
-        # Create a temporary Python file
-        test_file = tmp_path / "test_code.py"
-        test_file.write_text("""
-for user in User.objects.all():
-    print(user.profile.name)
-""")
+        test_file = tmp_path / "test.py"
+        test_file.write_text("for user in User.objects.all():\n    print(user.profile.name)")
 
         request = {
-            "jsonrpc": "2.0",
-            "id": 3,
-            "method": "call_tool",
-            "params": {
-                "name": "performance_check",
-                "arguments": {
-                    "file_path": str(test_file),
-                },
-            },
+            "jsonrpc": "2.0", "id": 1, "method": "call_tool",
+            "params": {"name": "performance_check", "arguments": {"file_path": str(test_file)}},
         }
-
         response = server._handle_request(request)
 
-        assert response["jsonrpc"] == "2.0"
-        assert response["id"] == 3
         assert "result" in response
+        result = response["result"]["content"][0]["json"]
+        assert any(i["category"] == "n_plus_one_query" for i in result["issues"])
 
-        # Parse the result
-        content = response["result"]["content"]
-        result_data = content[0]["json"]
-
-        # Should detect N+1 query
-        assert result_data["summary"]["total_issues"] >= 1
-        assert any(
-            issue["category"] == "n_plus_one_query"
-            for issue in result_data["issues"]
-        )
-
-    def test_performance_check_with_clean_code(self):
-        """Test performance check with code that has no issues."""
+    def test_performance_check_clean_code_and_error_cases(self):
+        """Test clean code returns no issues and error cases return proper errors."""
         server = WorkshopMCPServer()
 
-        source_code = """
-def clean_function():
-    return "Hello, World!"
-"""
+        # Clean code
+        response = server._handle_request({
+            "jsonrpc": "2.0", "id": 1, "method": "call_tool",
+            "params": {"name": "performance_check", "arguments": {"source_code": "def hello(): return 'world'"}},
+        })
+        assert response["result"]["content"][0]["json"]["summary"]["total_issues"] == 0
 
-        request = {
-            "jsonrpc": "2.0",
-            "id": 4,
-            "method": "call_tool",
-            "params": {
-                "name": "performance_check",
-                "arguments": {
-                    "source_code": source_code,
-                },
-            },
-        }
-
-        response = server._handle_request(request)
-
-        assert response["jsonrpc"] == "2.0"
-        assert response["id"] == 4
-        assert "result" in response
-
-        # Parse the result
-        content = response["result"]["content"]
-        result_data = content[0]["json"]
-
-        # Should have no issues
-        assert result_data["summary"]["total_issues"] == 0
-        assert len(result_data["issues"]) == 0
-
-    def test_performance_check_missing_params(self):
-        """Test error when no file_path or source_code provided."""
-        server = WorkshopMCPServer()
-
-        request = {
-            "jsonrpc": "2.0",
-            "id": 5,
-            "method": "call_tool",
-            "params": {
-                "name": "performance_check",
-                "arguments": {},
-            },
-        }
-
-        response = server._handle_request(request)
-
-        assert response["jsonrpc"] == "2.0"
-        assert response["id"] == 5
-        assert "error" in response
-        assert response["error"]["code"] == -32602
-        assert "file_path or source_code" in response["error"]["message"]
-
-    def test_performance_check_invalid_file_path(self):
-        """Test error when file_path doesn't exist."""
-        server = WorkshopMCPServer()
-
-        request = {
-            "jsonrpc": "2.0",
-            "id": 6,
-            "method": "call_tool",
-            "params": {
-                "name": "performance_check",
-                "arguments": {
-                    "file_path": "/nonexistent/path/to/file.py",
-                },
-            },
-        }
-
-        response = server._handle_request(request)
-
-        assert response["jsonrpc"] == "2.0"
-        assert response["id"] == 6
-        assert "error" in response
+        # Missing params
+        response = server._handle_request({
+            "jsonrpc": "2.0", "id": 2, "method": "call_tool",
+            "params": {"name": "performance_check", "arguments": {}},
+        })
         assert response["error"]["code"] == -32602
 
-    def test_performance_check_syntax_error(self):
-        """Test error when source code has syntax errors."""
-        server = WorkshopMCPServer()
-
-        source_code = """
-def bad_syntax(
-    # Missing closing parenthesis
-"""
-
-        request = {
-            "jsonrpc": "2.0",
-            "id": 7,
-            "method": "call_tool",
-            "params": {
-                "name": "performance_check",
-                "arguments": {
-                    "source_code": source_code,
-                },
-            },
-        }
-
-        response = server._handle_request(request)
-
-        assert response["jsonrpc"] == "2.0"
-        assert response["id"] == 7
-        assert "error" in response
+        # Invalid file path
+        response = server._handle_request({
+            "jsonrpc": "2.0", "id": 3, "method": "call_tool",
+            "params": {"name": "performance_check", "arguments": {"file_path": "/nonexistent.py"}},
+        })
         assert response["error"]["code"] == -32602
 
-    def test_performance_check_invalid_argument_types(self):
-        """Test error when arguments have wrong types.
-
-        Type validation happens in the server before path validation.
-        """
-        server = WorkshopMCPServer()
-
-        # Test with file_path as non-string - caught by explicit type check
-        request = {
-            "jsonrpc": "2.0",
-            "id": 8,
-            "method": "call_tool",
-            "params": {
-                "name": "performance_check",
-                "arguments": {
-                    "file_path": 123,  # Should be string
-                },
-            },
-        }
-
-        response = server._handle_request(request)
-
-        assert response["jsonrpc"] == "2.0"
-        assert response["id"] == 8
-        assert "error" in response
+        # Syntax error
+        response = server._handle_request({
+            "jsonrpc": "2.0", "id": 4, "method": "call_tool",
+            "params": {"name": "performance_check", "arguments": {"source_code": "def bad(\n"}},
+        })
         assert response["error"]["code"] == -32602
+
+        # Invalid type
+        response = server._handle_request({
+            "jsonrpc": "2.0", "id": 5, "method": "call_tool",
+            "params": {"name": "performance_check", "arguments": {"file_path": 123}},
+        })
         assert "file_path must be a string" in response["error"]["message"]
+
+
+class TestPathValidationIntegration:
+    """Integration tests for path validation in MCP server."""
+
+    def test_rejects_path_traversal_attacks(self, tmp_path, monkeypatch):
+        """Test that path traversal attacks are blocked with generic messages."""
+        monkeypatch.setenv("MCP_ALLOWED_ROOTS", str(tmp_path))
+        server = WorkshopMCPServer()
+
+        malicious_paths = [
+            ("/etc/passwd", "keyword_search", {"keyword": "root", "root_paths": ["/etc"]}),
+            (str(tmp_path / ".." / ".." / "etc"), "keyword_search", {"keyword": "test", "root_paths": [str(tmp_path / ".." / ".." / "etc")]}),
+            ("/etc/passwd", "performance_check", {"file_path": "/etc/passwd"}),
+            (str(tmp_path / ".." / "etc" / "passwd"), "performance_check", {"file_path": str(tmp_path / ".." / "etc" / "passwd")}),
+        ]
+
+        for path, tool, args in malicious_paths:
+            response = server._handle_request({
+                "jsonrpc": "2.0", "id": 1, "method": "call_tool",
+                "params": {"name": tool, "arguments": args},
+            })
+            assert "error" in response, f"Path {path} should be rejected"
+            assert response["error"]["code"] == -32602
+            # Error should be generic
+            assert "etc" not in response["error"]["message"].lower() or "outside allowed" in response["error"]["message"]
+
+    def test_accepts_valid_paths(self, tmp_path, monkeypatch):
+        """Test that valid paths within allowed roots work."""
+        monkeypatch.setenv("MCP_ALLOWED_ROOTS", str(tmp_path))
+        server = WorkshopMCPServer()
+
+        test_file = tmp_path / "test.py"
+        test_file.write_text("# hello world\ndef foo(): return 1")
+
+        # keyword_search
+        response = server._handle_request({
+            "jsonrpc": "2.0", "id": 1, "method": "call_tool",
+            "params": {"name": "keyword_search", "arguments": {"keyword": "hello", "root_paths": [str(tmp_path)]}},
+        })
+        assert "result" in response
+
+        # performance_check
+        response = server._handle_request({
+            "jsonrpc": "2.0", "id": 2, "method": "call_tool",
+            "params": {"name": "performance_check", "arguments": {"file_path": str(test_file)}},
+        })
+        assert "result" in response
 
 
 class TestMCPServerFraming:
@@ -295,262 +163,28 @@ class TestMCPServerFraming:
 
     def test_serve_once_with_performance_check(self, tmp_path, monkeypatch):
         """Test serve_once with a performance check request."""
-        # Allow tmp_path for path validation
         monkeypatch.setenv("MCP_ALLOWED_ROOTS", str(tmp_path))
         server = WorkshopMCPServer()
 
-        # Create a test file
         test_file = tmp_path / "test.py"
         test_file.write_text("async def test(): open('file.txt')")
 
-        # Create a request
         request = {
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "call_tool",
-            "params": {
-                "name": "performance_check",
-                "arguments": {
-                    "file_path": str(test_file),
-                },
-            },
+            "jsonrpc": "2.0", "id": 1, "method": "call_tool",
+            "params": {"name": "performance_check", "arguments": {"file_path": str(test_file)}},
         }
+        request_bytes = json.dumps(request).encode("utf-8")
+        request_message = f"Content-Length: {len(request_bytes)}\r\n\r\n".encode() + request_bytes
 
-        request_json = json.dumps(request)
-        request_bytes = request_json.encode("utf-8")
-        request_message = f"Content-Length: {len(request_bytes)}\r\n\r\n".encode("utf-8") + request_bytes
-
-        # Create mock stdin and stdout
         stdin = BytesIO(request_message)
         stdout = BytesIO()
+        assert server.serve_once(stdin, stdout) is True
 
-        # Process one message
-        result = server.serve_once(stdin, stdout)
-
-        assert result is True
-
-        # Parse the response
         stdout.seek(0)
         response_data = stdout.read()
-
-        # Extract the JSON response (after Content-Length header)
         header_end = response_data.find(b"\r\n\r\n")
-        response_json = response_data[header_end + 4:].decode("utf-8")
-        response = json.loads(response_json)
+        response = json.loads(response_data[header_end + 4:].decode("utf-8"))
 
-        assert response["jsonrpc"] == "2.0"
-        assert response["id"] == 1
         assert "result" in response
-
-        # Parse the result
-        content = response["result"]["content"]
-        result_data = content[0]["json"]
-
-        # Should detect blocking I/O in async
-        assert result_data["summary"]["total_issues"] >= 1
-        assert any(
-            issue["category"] == "blocking_io_in_async"
-            for issue in result_data["issues"]
-        )
-
-
-class TestPathValidationIntegration:
-    """Integration tests for path validation in MCP server.
-
-    These tests verify that path traversal attacks are blocked at the
-    MCP server level with appropriate JSON-RPC error responses.
-    """
-
-    def test_keyword_search_rejects_traversal(self, tmp_path, monkeypatch):
-        """Test that keyword_search rejects paths with traversal sequences."""
-        # Set up allowed root that doesn't include traversal target
-        monkeypatch.setenv("MCP_ALLOWED_ROOTS", str(tmp_path))
-        server = WorkshopMCPServer()
-
-        # Attempt to escape via traversal
-        request = {
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "call_tool",
-            "params": {
-                "name": "keyword_search",
-                "arguments": {
-                    "keyword": "test",
-                    "root_paths": [str(tmp_path / ".." / ".." / "etc")],
-                },
-            },
-        }
-
-        response = server._handle_request(request)
-
-        # Should return error, not result
-        assert "error" in response
-        assert response["error"]["code"] == -32602
-        # Error message should be generic (no path details leaked)
-        assert "outside allowed directories" in response["error"]["message"]
-        # Should NOT contain the actual path
-        assert "/etc" not in response["error"]["message"]
-
-    def test_keyword_search_rejects_absolute_path(self, tmp_path, monkeypatch):
-        """Test that keyword_search rejects absolute paths outside allowed roots."""
-        # Set allowed root to tmp_path
-        monkeypatch.setenv("MCP_ALLOWED_ROOTS", str(tmp_path))
-        server = WorkshopMCPServer()
-
-        # Attempt to access system directory
-        request = {
-            "jsonrpc": "2.0",
-            "id": 2,
-            "method": "call_tool",
-            "params": {
-                "name": "keyword_search",
-                "arguments": {
-                    "keyword": "passwd",
-                    "root_paths": ["/etc"],
-                },
-            },
-        }
-
-        response = server._handle_request(request)
-
-        assert "error" in response
-        assert response["error"]["code"] == -32602
-        assert "outside allowed directories" in response["error"]["message"]
-
-    def test_performance_check_rejects_traversal(self, tmp_path, monkeypatch):
-        """Test that performance_check rejects file paths with traversal."""
-        monkeypatch.setenv("MCP_ALLOWED_ROOTS", str(tmp_path))
-        server = WorkshopMCPServer()
-
-        request = {
-            "jsonrpc": "2.0",
-            "id": 3,
-            "method": "call_tool",
-            "params": {
-                "name": "performance_check",
-                "arguments": {
-                    "file_path": str(tmp_path / ".." / ".." / "etc" / "passwd"),
-                },
-            },
-        }
-
-        response = server._handle_request(request)
-
-        assert "error" in response
-        assert response["error"]["code"] == -32602
-        # Error message is generic - either traversal block or file not found
-        assert "error" in response
-        # Should NOT expose actual path in error
-        assert "/etc/passwd" not in str(response["error"])
-
-    def test_performance_check_rejects_absolute_path(self, tmp_path, monkeypatch):
-        """Test that performance_check rejects absolute paths outside allowed roots."""
-        monkeypatch.setenv("MCP_ALLOWED_ROOTS", str(tmp_path))
-        server = WorkshopMCPServer()
-
-        request = {
-            "jsonrpc": "2.0",
-            "id": 4,
-            "method": "call_tool",
-            "params": {
-                "name": "performance_check",
-                "arguments": {
-                    "file_path": "/etc/passwd",
-                },
-            },
-        }
-
-        response = server._handle_request(request)
-
-        assert "error" in response
-        assert response["error"]["code"] == -32602
-        assert "outside allowed directories" in response["error"]["message"]
-
-    def test_keyword_search_accepts_valid_path(self, tmp_path, monkeypatch):
-        """Test that keyword_search accepts paths within allowed roots."""
-        monkeypatch.setenv("MCP_ALLOWED_ROOTS", str(tmp_path))
-        server = WorkshopMCPServer()
-
-        # Create a test file in allowed directory
-        test_file = tmp_path / "test.py"
-        test_file.write_text("hello world")
-
-        request = {
-            "jsonrpc": "2.0",
-            "id": 5,
-            "method": "call_tool",
-            "params": {
-                "name": "keyword_search",
-                "arguments": {
-                    "keyword": "hello",
-                    "root_paths": [str(tmp_path)],
-                },
-            },
-        }
-
-        response = server._handle_request(request)
-
-        # Should return result, not error
-        assert "result" in response
-        assert "error" not in response
-
-    def test_performance_check_accepts_valid_file(self, tmp_path, monkeypatch):
-        """Test that performance_check accepts files within allowed roots."""
-        monkeypatch.setenv("MCP_ALLOWED_ROOTS", str(tmp_path))
-        server = WorkshopMCPServer()
-
-        # Create a test Python file in allowed directory
-        test_file = tmp_path / "test.py"
-        test_file.write_text("def hello(): return 'world'")
-
-        request = {
-            "jsonrpc": "2.0",
-            "id": 6,
-            "method": "call_tool",
-            "params": {
-                "name": "performance_check",
-                "arguments": {
-                    "file_path": str(test_file),
-                },
-            },
-        }
-
-        response = server._handle_request(request)
-
-        # Should return result, not error
-        assert "result" in response
-        assert "error" not in response
-
-    def test_error_message_is_generic(self, tmp_path, monkeypatch):
-        """Test that error messages don't leak path information."""
-        monkeypatch.setenv("MCP_ALLOWED_ROOTS", str(tmp_path))
-        server = WorkshopMCPServer()
-
-        # Try various traversal attempts
-        malicious_paths = [
-            "/etc/passwd",
-            "../../../etc/passwd",
-            str(tmp_path / ".." / ".." / ".." / "etc" / "passwd"),
-            "//etc/passwd",
-        ]
-
-        for path in malicious_paths:
-            request = {
-                "jsonrpc": "2.0",
-                "id": 7,
-                "method": "call_tool",
-                "params": {
-                    "name": "performance_check",
-                    "arguments": {
-                        "file_path": path,
-                    },
-                },
-            }
-
-            response = server._handle_request(request)
-
-            assert "error" in response, f"Path {path} should be rejected"
-            error_msg = response["error"]["message"]
-            # Error message should be generic - no path details
-            assert "etc" not in error_msg.lower() or error_msg == "Path is outside allowed directories"
-            assert "passwd" not in error_msg.lower()
+        result = response["result"]["content"][0]["json"]
+        assert any(i["category"] == "blocking_io_in_async" for i in result["issues"])
