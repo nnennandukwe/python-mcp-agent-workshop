@@ -3,8 +3,6 @@
 import json
 from io import BytesIO
 
-import pytest
-
 from workshop_mcp.server import WorkshopMCPServer
 
 
@@ -42,7 +40,9 @@ async def bad_async():
         data = f.read()
 """
         request = {
-            "jsonrpc": "2.0", "id": 1, "method": "call_tool",
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "call_tool",
             "params": {"name": "performance_check", "arguments": {"source_code": source_code}},
         }
         response = server._handle_request(request)
@@ -61,7 +61,9 @@ async def bad_async():
         test_file.write_text("for user in User.objects.all():\n    print(user.profile.name)")
 
         request = {
-            "jsonrpc": "2.0", "id": 1, "method": "call_tool",
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "call_tool",
             "params": {"name": "performance_check", "arguments": {"file_path": str(test_file)}},
         }
         response = server._handle_request(request)
@@ -75,38 +77,64 @@ async def bad_async():
         server = WorkshopMCPServer()
 
         # Clean code
-        response = server._handle_request({
-            "jsonrpc": "2.0", "id": 1, "method": "call_tool",
-            "params": {"name": "performance_check", "arguments": {"source_code": "def hello(): return 'world'"}},
-        })
+        response = server._handle_request(
+            {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "call_tool",
+                "params": {
+                    "name": "performance_check",
+                    "arguments": {"source_code": "def hello(): return 'world'"},
+                },
+            }
+        )
         assert response["result"]["content"][0]["json"]["summary"]["total_issues"] == 0
 
         # Missing params
-        response = server._handle_request({
-            "jsonrpc": "2.0", "id": 2, "method": "call_tool",
-            "params": {"name": "performance_check", "arguments": {}},
-        })
+        response = server._handle_request(
+            {
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "call_tool",
+                "params": {"name": "performance_check", "arguments": {}},
+            }
+        )
         assert response["error"]["code"] == -32602
 
         # Invalid file path
-        response = server._handle_request({
-            "jsonrpc": "2.0", "id": 3, "method": "call_tool",
-            "params": {"name": "performance_check", "arguments": {"file_path": "/nonexistent.py"}},
-        })
+        response = server._handle_request(
+            {
+                "jsonrpc": "2.0",
+                "id": 3,
+                "method": "call_tool",
+                "params": {
+                    "name": "performance_check",
+                    "arguments": {"file_path": "/nonexistent.py"},
+                },
+            }
+        )
         assert response["error"]["code"] == -32602
 
         # Syntax error
-        response = server._handle_request({
-            "jsonrpc": "2.0", "id": 4, "method": "call_tool",
-            "params": {"name": "performance_check", "arguments": {"source_code": "def bad(\n"}},
-        })
+        response = server._handle_request(
+            {
+                "jsonrpc": "2.0",
+                "id": 4,
+                "method": "call_tool",
+                "params": {"name": "performance_check", "arguments": {"source_code": "def bad(\n"}},
+            }
+        )
         assert response["error"]["code"] == -32602
 
         # Invalid type
-        response = server._handle_request({
-            "jsonrpc": "2.0", "id": 5, "method": "call_tool",
-            "params": {"name": "performance_check", "arguments": {"file_path": 123}},
-        })
+        response = server._handle_request(
+            {
+                "jsonrpc": "2.0",
+                "id": 5,
+                "method": "call_tool",
+                "params": {"name": "performance_check", "arguments": {"file_path": 123}},
+            }
+        )
         assert "file_path must be a string" in response["error"]["message"]
 
 
@@ -120,16 +148,28 @@ class TestPathValidationIntegration:
 
         malicious_paths = [
             ("/etc/passwd", "keyword_search", {"keyword": "root", "root_paths": ["/etc"]}),
-            (str(tmp_path / ".." / ".." / "etc"), "keyword_search", {"keyword": "test", "root_paths": [str(tmp_path / ".." / ".." / "etc")]}),
+            (
+                str(tmp_path / ".." / ".." / "etc"),
+                "keyword_search",
+                {"keyword": "test", "root_paths": [str(tmp_path / ".." / ".." / "etc")]},
+            ),
             ("/etc/passwd", "performance_check", {"file_path": "/etc/passwd"}),
-            (str(tmp_path / ".." / "etc" / "passwd"), "performance_check", {"file_path": str(tmp_path / ".." / "etc" / "passwd")}),
+            (
+                str(tmp_path / ".." / "etc" / "passwd"),
+                "performance_check",
+                {"file_path": str(tmp_path / ".." / "etc" / "passwd")},
+            ),
         ]
 
         for path, tool, args in malicious_paths:
-            response = server._handle_request({
-                "jsonrpc": "2.0", "id": 1, "method": "call_tool",
-                "params": {"name": tool, "arguments": args},
-            })
+            response = server._handle_request(
+                {
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "method": "call_tool",
+                    "params": {"name": tool, "arguments": args},
+                }
+            )
             assert "error" in response, f"Path {path} should be rejected"
             assert response["error"]["code"] == -32602
             # Error should be generic and not leak path details
@@ -145,17 +185,28 @@ class TestPathValidationIntegration:
         test_file.write_text("# hello world\ndef foo(): return 1")
 
         # keyword_search
-        response = server._handle_request({
-            "jsonrpc": "2.0", "id": 1, "method": "call_tool",
-            "params": {"name": "keyword_search", "arguments": {"keyword": "hello", "root_paths": [str(tmp_path)]}},
-        })
+        response = server._handle_request(
+            {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "call_tool",
+                "params": {
+                    "name": "keyword_search",
+                    "arguments": {"keyword": "hello", "root_paths": [str(tmp_path)]},
+                },
+            }
+        )
         assert "result" in response
 
         # performance_check
-        response = server._handle_request({
-            "jsonrpc": "2.0", "id": 2, "method": "call_tool",
-            "params": {"name": "performance_check", "arguments": {"file_path": str(test_file)}},
-        })
+        response = server._handle_request(
+            {
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "call_tool",
+                "params": {"name": "performance_check", "arguments": {"file_path": str(test_file)}},
+            }
+        )
         assert "result" in response
 
 
@@ -171,7 +222,9 @@ class TestMCPServerFraming:
         test_file.write_text("async def test(): open('file.txt')")
 
         request = {
-            "jsonrpc": "2.0", "id": 1, "method": "call_tool",
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "call_tool",
             "params": {"name": "performance_check", "arguments": {"file_path": str(test_file)}},
         }
         request_bytes = json.dumps(request).encode("utf-8")
@@ -184,7 +237,7 @@ class TestMCPServerFraming:
         stdout.seek(0)
         response_data = stdout.read()
         header_end = response_data.find(b"\r\n\r\n")
-        response = json.loads(response_data[header_end + 4:].decode("utf-8"))
+        response = json.loads(response_data[header_end + 4 :].decode("utf-8"))
 
         assert "result" in response
         result = response["result"]["content"][0]["json"]

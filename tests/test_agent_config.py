@@ -106,7 +106,7 @@ class TestAgentConfigs:
             if "commands" not in config:
                 continue
 
-            for cmd_name, cmd_config in config["commands"].items():
+            for _cmd_name, cmd_config in config["commands"].items():
                 # Check execution strategy if present
                 if "execution_strategy" in cmd_config:
                     assert cmd_config["execution_strategy"] in ["plan", "act"]

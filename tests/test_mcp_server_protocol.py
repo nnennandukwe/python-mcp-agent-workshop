@@ -8,7 +8,7 @@ request handling, and error responses without relying on the MCP SDK.
 import asyncio
 import io
 import json
-from typing import Any, Dict, Optional
+from typing import Any
 
 import pytest
 
@@ -17,14 +17,14 @@ from workshop_mcp.server import WorkshopMCPServer
 
 def _encode_message(payload: Any) -> bytes:
     data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
-    header = f"Content-Length: {len(data)}\r\n\r\n".encode("utf-8")
+    header = f"Content-Length: {len(data)}\r\n\r\n".encode()
     return header + data
 
 
-def _decode_message(raw: bytes) -> Dict[str, Any]:
+def _decode_message(raw: bytes) -> dict[str, Any]:
     header_blob, body = raw.split(b"\r\n\r\n", 1)
 
-    content_length: Optional[int] = None
+    content_length: int | None = None
     for line in header_blob.decode("utf-8", errors="replace").split("\r\n"):
         if line.lower().startswith("content-length:"):
             content_length = int(line.split(":", 1)[1].strip())
@@ -34,9 +34,7 @@ def _decode_message(raw: bytes) -> Dict[str, Any]:
     return json.loads(body[:content_length].decode("utf-8"))
 
 
-def _run_server_harness(
-    server: WorkshopMCPServer, raw_message: bytes
-) -> Optional[Dict[str, Any]]:
+def _run_server_harness(server: WorkshopMCPServer, raw_message: bytes) -> dict[str, Any] | None:
     stdin = io.BytesIO(raw_message)
     stdout = io.BytesIO()
 
@@ -53,7 +51,7 @@ def _run_server_harness(
 
 
 def _assert_jsonrpc_error(
-    response: Optional[Dict[str, Any]],
+    response: dict[str, Any] | None,
     *,
     code: int,
     message_contains: str | None = None,
@@ -155,7 +153,9 @@ class TestServerLoop:
     ) -> None:
         """Test that serve_once handles unexpected exceptions gracefully."""
         monkeypatch.setattr(
-            server, "_read_message", lambda *a, **kw: (_ for _ in ()).throw(RuntimeError("Unexpected"))
+            server,
+            "_read_message",
+            lambda *a, **kw: (_ for _ in ()).throw(RuntimeError("Unexpected")),
         )
 
         stdin = io.BytesIO(b"Content-Length: 2\r\n\r\n{}")
@@ -206,7 +206,7 @@ class TestRequestValidation:
 
         # String instead of object
         raw_payload = b'"just a string"'
-        header = f"Content-Length: {len(raw_payload)}\r\n\r\n".encode("utf-8")
+        header = f"Content-Length: {len(raw_payload)}\r\n\r\n".encode()
         response = _run_server_harness(server, header + raw_payload)
         _assert_jsonrpc_error(response, code=-32600)
 
@@ -231,9 +231,7 @@ class TestRequestValidation:
         _assert_jsonrpc_error(response, code=-32600)
 
         # Missing jsonrpc field
-        response = _run_server_harness(
-            server, _encode_message({"id": 1, "method": "list_tools"})
-        )
+        response = _run_server_harness(server, _encode_message({"id": 1, "method": "list_tools"}))
         _assert_jsonrpc_error(response, code=-32600)
 
     def test_notification_and_error_response_handling(self, server: WorkshopMCPServer) -> None:
@@ -246,10 +244,12 @@ class TestRequestValidation:
         assert stdout.getvalue() == b""
 
         # Incoming error response (server should not reply)
-        error_msg = _encode_message({
-            "jsonrpc": "2.0",
-            "error": {"code": -32000, "message": "Server error"},
-        })
+        error_msg = _encode_message(
+            {
+                "jsonrpc": "2.0",
+                "error": {"code": -32000, "message": "Server error"},
+            }
+        )
         stdin = io.BytesIO(error_msg)
         stdout = io.BytesIO()
         assert server.serve_once(stdin, stdout) is True
@@ -259,7 +259,7 @@ class TestRequestValidation:
         """Test parse error for malformed JSON and method not found."""
         # Malformed JSON
         raw_payload = b'{"jsonrpc": "2.0", "method": "initialize",}'
-        header = f"Content-Length: {len(raw_payload)}\r\n\r\n".encode("utf-8")
+        header = f"Content-Length: {len(raw_payload)}\r\n\r\n".encode()
         response = _run_server_harness(server, header + raw_payload)
         _assert_jsonrpc_error(response, code=-32700)
 
@@ -274,12 +274,14 @@ class TestRequestValidation:
         for invalid_params in ["not-a-dict", [1, 2, 3]]:
             response = _run_server_harness(
                 server,
-                _encode_message({
-                    "jsonrpc": "2.0",
-                    "id": 1,
-                    "method": "initialize",
-                    "params": invalid_params,
-                }),
+                _encode_message(
+                    {
+                        "jsonrpc": "2.0",
+                        "id": 1,
+                        "method": "initialize",
+                        "params": invalid_params,
+                    }
+                ),
             )
             _assert_jsonrpc_error(response, code=-32602, message_contains="Invalid params")
 
@@ -292,24 +294,28 @@ class TestToolCallValidation:
         # Non-dict params
         response = _run_server_harness(
             server,
-            _encode_message({
-                "jsonrpc": "2.0",
-                "id": 1,
-                "method": "call_tool",
-                "params": "not-a-dict",
-            }),
+            _encode_message(
+                {
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "method": "call_tool",
+                    "params": "not-a-dict",
+                }
+            ),
         )
         _assert_jsonrpc_error(response, code=-32602, message_contains="Invalid params")
 
         # Unknown tool
         response = _run_server_harness(
             server,
-            _encode_message({
-                "jsonrpc": "2.0",
-                "id": 1,
-                "method": "call_tool",
-                "params": {"name": "nonexistent_tool", "arguments": {}},
-            }),
+            _encode_message(
+                {
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "method": "call_tool",
+                    "params": {"name": "nonexistent_tool", "arguments": {}},
+                }
+            ),
         )
         _assert_jsonrpc_error(response, code=-32602, message_contains="Unknown tool")
 
@@ -319,22 +325,39 @@ class TestToolCallValidation:
             # (arguments, expected_message_contains)
             ({"keyword": 123, "root_paths": ["/tmp"]}, "keyword must be a string"),
             ({"keyword": "test", "root_paths": "/tmp"}, "root_paths must be a list"),
-            ({"keyword": "test", "root_paths": ["/tmp", 123]}, "root_paths must be a list of strings"),
-            ({"keyword": "test", "root_paths": ["/tmp"], "case_insensitive": "yes"}, "case_insensitive must be a boolean"),
-            ({"keyword": "test", "root_paths": ["/tmp"], "use_regex": 1}, "use_regex must be a boolean"),
-            ({"keyword": "test", "root_paths": ["/tmp"], "include_patterns": "*.py"}, "include_patterns must be a list"),
-            ({"keyword": "test", "root_paths": ["/tmp"], "exclude_patterns": "*.pyc"}, "exclude_patterns must be a list"),
+            (
+                {"keyword": "test", "root_paths": ["/tmp", 123]},
+                "root_paths must be a list of strings",
+            ),
+            (
+                {"keyword": "test", "root_paths": ["/tmp"], "case_insensitive": "yes"},
+                "case_insensitive must be a boolean",
+            ),
+            (
+                {"keyword": "test", "root_paths": ["/tmp"], "use_regex": 1},
+                "use_regex must be a boolean",
+            ),
+            (
+                {"keyword": "test", "root_paths": ["/tmp"], "include_patterns": "*.py"},
+                "include_patterns must be a list",
+            ),
+            (
+                {"keyword": "test", "root_paths": ["/tmp"], "exclude_patterns": "*.pyc"},
+                "exclude_patterns must be a list",
+            ),
         ]
 
         for arguments, expected_msg in test_cases:
             response = _run_server_harness(
                 server,
-                _encode_message({
-                    "jsonrpc": "2.0",
-                    "id": 1,
-                    "method": "call_tool",
-                    "params": {"name": "keyword_search", "arguments": arguments},
-                }),
+                _encode_message(
+                    {
+                        "jsonrpc": "2.0",
+                        "id": 1,
+                        "method": "call_tool",
+                        "params": {"name": "keyword_search", "arguments": arguments},
+                    }
+                ),
             )
             _assert_jsonrpc_error(response, code=-32602, message_contains=expected_msg)
 
@@ -343,29 +366,33 @@ class TestToolCallValidation:
         # Non-dict arguments
         response = _run_server_harness(
             server,
-            _encode_message({
-                "jsonrpc": "2.0",
-                "id": 1,
-                "method": "call_tool",
-                "params": {"name": "performance_check", "arguments": "not-a-dict"},
-            }),
+            _encode_message(
+                {
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "method": "call_tool",
+                    "params": {"name": "performance_check", "arguments": "not-a-dict"},
+                }
+            ),
         )
         _assert_jsonrpc_error(response, code=-32602, message_contains="Invalid params")
 
         # Both file_path and source_code provided
         response = _run_server_harness(
             server,
-            _encode_message({
-                "jsonrpc": "2.0",
-                "id": 1,
-                "method": "call_tool",
-                "params": {
-                    "name": "performance_check",
-                    "arguments": {
-                        "file_path": "/tmp/test.py",
-                        "source_code": "print('hello')",
+            _encode_message(
+                {
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "method": "call_tool",
+                    "params": {
+                        "name": "performance_check",
+                        "arguments": {
+                            "file_path": "/tmp/test.py",
+                            "source_code": "print('hello')",
+                        },
                     },
-                },
-            }),
+                }
+            ),
         )
         _assert_jsonrpc_error(response, code=-32602, message_contains="only one of")

@@ -19,8 +19,9 @@ Usage:
         return error_response(str(e))
 """
 
+from re import Pattern
+
 import regex
-from typing import Pattern
 
 from .exceptions import RegexValidationError
 

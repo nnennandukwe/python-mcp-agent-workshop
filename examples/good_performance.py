@@ -14,7 +14,7 @@ Running the profiler on this file should return 0 issues:
 
 import asyncio
 import json
-from typing import AsyncIterator, Iterator, List
+from collections.abc import Iterator
 
 # Note: In real code, you'd import these:
 # import aiofiles
@@ -42,10 +42,9 @@ def get_user_orders_good(user_queryset):
     results = []
     for user in user_queryset:
         # Access pre-computed annotation, no extra query
-        results.append({
-            'user': user.name,
-            'order_count': user.pending_count  # Already computed
-        })
+        results.append(
+            {"user": user.name, "order_count": user.pending_count}  # Already computed
+        )
     return results
 
 
@@ -72,7 +71,7 @@ async def fetch_config_good():
     return config
 
 
-async def fetch_data_from_api_good(urls: List[str]) -> List[dict]:
+async def fetch_data_from_api_good(urls: list[str]) -> list[dict]:
     """
     GOOD: Concurrent async HTTP requests.
 
@@ -92,7 +91,7 @@ async def fetch_data_from_api_good(urls: List[str]) -> List[dict]:
 # =============================================================================
 # GOOD: Efficient String Building
 # =============================================================================
-def build_report_good(items: List[dict]) -> str:
+def build_report_good(items: list[dict]) -> str:
     """
     GOOD: Using list.append() + join().
 
@@ -105,22 +104,19 @@ def build_report_good(items: List[dict]) -> str:
     return "\n".join(parts)
 
 
-def build_report_comprehension(items: List[dict]) -> str:
+def build_report_comprehension(items: list[dict]) -> str:
     """
     GOOD: Using list comprehension + join().
 
     Even more Pythonic and often faster due to optimizations.
     """
-    return "\n".join(
-        f"Item: {item['name']}, Value: {item['value']}"
-        for item in items
-    )
+    return "\n".join(f"Item: {item['name']}, Value: {item['value']}" for item in items)
 
 
 # =============================================================================
 # GOOD: Memory-Efficient File Processing
 # =============================================================================
-def process_log_good(log_path: str) -> List[str]:
+def process_log_good(log_path: str) -> list[str]:
     """
     GOOD: Streaming file line-by-line.
 
@@ -130,7 +126,7 @@ def process_log_good(log_path: str) -> List[str]:
     errors = []
     with open(log_path) as f:
         for line in f:  # Streams line-by-line, O(1) memory
-            if 'ERROR' in line:
+            if "ERROR" in line:
                 errors.append(line)
     return errors
 
@@ -144,7 +140,7 @@ def process_log_generator(log_path: str) -> Iterator[str]:
     """
     with open(log_path) as f:
         for line in f:
-            if 'ERROR' in line:
+            if "ERROR" in line:
                 yield line
 
 
@@ -164,14 +160,13 @@ def process_large_json_good(json_path: str) -> Iterator[dict]:
     # Simulated for this example
     with open(json_path) as f:
         data = json.load(f)
-        for item in data.get('items', []):
-            yield item
+        yield from data.get("items", [])
 
 
 # =============================================================================
 # GOOD: Efficient Algorithms
 # =============================================================================
-def find_triplets_good(numbers: List[int], target: int) -> List[tuple]:
+def find_triplets_good(numbers: list[int], target: int) -> list[tuple]:
     """
     GOOD: O(n²) two-pointer algorithm.
 
@@ -206,7 +201,7 @@ def find_triplets_good(numbers: List[int], target: int) -> List[tuple]:
     return triplets
 
 
-def find_pair_with_sum(numbers: List[int], target: int) -> tuple:
+def find_pair_with_sum(numbers: list[int], target: int) -> tuple:
     """
     GOOD: O(n) hash-based lookup.
 

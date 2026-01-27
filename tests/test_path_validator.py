@@ -75,9 +75,7 @@ class TestAbsolutePaths:
                 file1.touch()
                 file2.touch()
 
-                validator = PathValidator(
-                    allowed_roots=[Path(tmpdir1), Path(tmpdir2)]
-                )
+                validator = PathValidator(allowed_roots=[Path(tmpdir1), Path(tmpdir2)])
 
                 assert validator.validate(str(file1)) == file1.resolve()
                 assert validator.validate(str(file2)) == file2.resolve()

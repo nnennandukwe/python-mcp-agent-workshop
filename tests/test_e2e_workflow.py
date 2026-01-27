@@ -8,10 +8,7 @@ import json
 from io import BytesIO
 from pathlib import Path
 
-import pytest
-
 from workshop_mcp.server import WorkshopMCPServer
-
 
 FIXTURES_DIR = Path(__file__).parent.parent / "test_fixtures"
 
@@ -25,7 +22,9 @@ class TestPerformanceAnalysis:
         fixture_path = FIXTURES_DIR / "sample_bad_performance.py"
 
         request = {
-            "jsonrpc": "2.0", "id": 1, "method": "call_tool",
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "call_tool",
             "params": {"name": "performance_check", "arguments": {"file_path": str(fixture_path)}},
         }
         response = server._handle_request(request)
@@ -44,7 +43,10 @@ class TestPerformanceAnalysis:
 
         # Verify issue structure
         for issue in result["issues"]:
-            assert all(field in issue for field in ["category", "severity", "line_number", "description", "suggestion"])
+            assert all(
+                field in issue
+                for field in ["category", "severity", "line_number", "description", "suggestion"]
+            )
 
         # Should detect key categories
         detected = {issue["category"] for issue in result["issues"]}
@@ -54,16 +56,18 @@ class TestPerformanceAnalysis:
         """Test that simple, clean code has zero issues."""
         server = WorkshopMCPServer()
 
-        source_code = '''
+        source_code = """
 def calculate_sum(numbers):
     return sum(numbers)
 
 class Calculator:
     def add(self, a, b):
         return a + b
-'''
+"""
         request = {
-            "jsonrpc": "2.0", "id": 1, "method": "call_tool",
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "call_tool",
             "params": {"name": "performance_check", "arguments": {"source_code": source_code}},
         }
         response = server._handle_request(request)
@@ -76,7 +80,7 @@ class Calculator:
         """Test analysis detects blocking I/O in async functions."""
         server = WorkshopMCPServer()
 
-        source_code = '''
+        source_code = """
 import time
 
 async def problematic_function():
@@ -84,9 +88,11 @@ async def problematic_function():
     with open("data.txt") as f:
         data = f.read()  # Also blocking!
     return data
-'''
+"""
         request = {
-            "jsonrpc": "2.0", "id": 1, "method": "call_tool",
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "call_tool",
             "params": {"name": "performance_check", "arguments": {"source_code": source_code}},
         }
         response = server._handle_request(request)
@@ -105,8 +111,13 @@ class TestErrorHandling:
         server = WorkshopMCPServer()
 
         request = {
-            "jsonrpc": "2.0", "id": 1, "method": "call_tool",
-            "params": {"name": "performance_check", "arguments": {"file_path": "/nonexistent/path/file.py"}},
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "call_tool",
+            "params": {
+                "name": "performance_check",
+                "arguments": {"file_path": "/nonexistent/path/file.py"},
+            },
         }
         response = server._handle_request(request)
 
@@ -118,7 +129,9 @@ class TestErrorHandling:
         server = WorkshopMCPServer()
 
         request = {
-            "jsonrpc": "2.0", "id": 1, "method": "call_tool",
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "call_tool",
             "params": {"name": "performance_check", "arguments": {"source_code": "def broken(\n"}},
         }
         response = server._handle_request(request)
@@ -131,18 +144,32 @@ class TestErrorHandling:
         server = WorkshopMCPServer()
 
         # Missing both
-        response = server._handle_request({
-            "jsonrpc": "2.0", "id": 1, "method": "call_tool",
-            "params": {"name": "performance_check", "arguments": {}},
-        })
+        response = server._handle_request(
+            {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "call_tool",
+                "params": {"name": "performance_check", "arguments": {}},
+            }
+        )
         assert "error" in response and "file_path or source_code" in response["error"]["message"]
 
         # Both provided
-        response = server._handle_request({
-            "jsonrpc": "2.0", "id": 2, "method": "call_tool",
-            "params": {"name": "performance_check", "arguments": {"file_path": "/path.py", "source_code": "pass"}},
-        })
-        assert "error" in response and "only one of file_path or source_code" in response["error"]["message"]
+        response = server._handle_request(
+            {
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "call_tool",
+                "params": {
+                    "name": "performance_check",
+                    "arguments": {"file_path": "/path.py", "source_code": "pass"},
+                },
+            }
+        )
+        assert (
+            "error" in response
+            and "only one of file_path or source_code" in response["error"]["message"]
+        )
 
 
 class TestMCPProtocolCompliance:
@@ -169,7 +196,9 @@ class TestMCPProtocolCompliance:
         fixture_path = FIXTURES_DIR / "sample_bad_performance.py"
 
         request = {
-            "jsonrpc": "2.0", "id": 1, "method": "call_tool",
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "call_tool",
             "params": {"name": "performance_check", "arguments": {"file_path": str(fixture_path)}},
         }
         request_bytes = json.dumps(request).encode("utf-8")
@@ -182,7 +211,7 @@ class TestMCPProtocolCompliance:
         stdout.seek(0)
         response_data = stdout.read()
         header_end = response_data.find(b"\r\n\r\n")
-        response = json.loads(response_data[header_end + 4:].decode("utf-8"))
+        response = json.loads(response_data[header_end + 4 :].decode("utf-8"))
 
         assert response["jsonrpc"] == "2.0"
         assert response["id"] == 1

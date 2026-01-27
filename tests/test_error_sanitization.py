@@ -7,11 +7,8 @@ These tests verify that:
 """
 
 import json
-import logging
 from io import BytesIO
 from unittest.mock import patch
-
-import pytest
 
 from workshop_mcp.security import (
     RegexAbortError,
@@ -31,12 +28,18 @@ class TestErrorSanitization:
         server = WorkshopMCPServer()
 
         with patch.object(
-            server.keyword_search_tool, "execute",
+            server.keyword_search_tool,
+            "execute",
             side_effect=ValueError(f"Invalid value for path {tmp_path}/secret/internal.py"),
         ):
             request = {
-                "jsonrpc": "2.0", "id": 1, "method": "call_tool",
-                "params": {"name": "keyword_search", "arguments": {"keyword": "test", "root_paths": [str(tmp_path)]}},
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "call_tool",
+                "params": {
+                    "name": "keyword_search",
+                    "arguments": {"keyword": "test", "root_paths": [str(tmp_path)]},
+                },
             }
             response = server._handle_request(request)
 
@@ -49,12 +52,18 @@ class TestErrorSanitization:
         server = WorkshopMCPServer()
 
         with patch.object(
-            server.keyword_search_tool, "execute",
+            server.keyword_search_tool,
+            "execute",
             side_effect=FileNotFoundError("/home/user/sensitive/data/config.json"),
         ):
             request = {
-                "jsonrpc": "2.0", "id": 1, "method": "call_tool",
-                "params": {"name": "keyword_search", "arguments": {"keyword": "test", "root_paths": [str(tmp_path)]}},
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "call_tool",
+                "params": {
+                    "name": "keyword_search",
+                    "arguments": {"keyword": "test", "root_paths": [str(tmp_path)]},
+                },
             }
             response = server._handle_request(request)
 
@@ -66,8 +75,13 @@ class TestErrorSanitization:
         server = WorkshopMCPServer()
 
         request = {
-            "jsonrpc": "2.0", "id": 1, "method": "call_tool",
-            "params": {"name": "performance_check", "arguments": {"source_code": "def foo(:\n    pass"}},
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "call_tool",
+            "params": {
+                "name": "performance_check",
+                "arguments": {"source_code": "def foo(:\n    pass"},
+            },
         }
         response = server._handle_request(request)
 
@@ -80,12 +94,18 @@ class TestErrorSanitization:
         server = WorkshopMCPServer()
 
         with patch.object(
-            server.keyword_search_tool, "execute",
+            server.keyword_search_tool,
+            "execute",
             side_effect=KeyError("internal_config_api_key"),
         ):
             request = {
-                "jsonrpc": "2.0", "id": 1, "method": "call_tool",
-                "params": {"name": "keyword_search", "arguments": {"keyword": "test", "root_paths": [str(tmp_path)]}},
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "call_tool",
+                "params": {
+                    "name": "keyword_search",
+                    "arguments": {"keyword": "test", "root_paths": [str(tmp_path)]},
+                },
             }
             response = server._handle_request(request)
 
@@ -99,13 +119,23 @@ class TestErrorSanitization:
 
         revealing_error = "Database connection to secret.db failed with password xyz"
         with patch.object(
-            server.keyword_search_tool, "execute",
+            server.keyword_search_tool,
+            "execute",
             side_effect=RuntimeError(revealing_error),
         ):
-            request = {"jsonrpc": "2.0", "id": 1, "method": "call_tool",
-                       "params": {"name": "keyword_search", "arguments": {"keyword": "test", "root_paths": [str(tmp_path)]}}}
+            request = {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "call_tool",
+                "params": {
+                    "name": "keyword_search",
+                    "arguments": {"keyword": "test", "root_paths": [str(tmp_path)]},
+                },
+            }
             request_bytes = json.dumps(request).encode("utf-8")
-            request_message = f"Content-Length: {len(request_bytes)}\r\n\r\n".encode("utf-8") + request_bytes
+            request_message = (
+                f"Content-Length: {len(request_bytes)}\r\n\r\n".encode() + request_bytes
+            )
 
             stdin = BytesIO(request_message)
             stdout = BytesIO()
@@ -114,7 +144,7 @@ class TestErrorSanitization:
             stdout.seek(0)
             response_data = stdout.read()
             header_end = response_data.find(b"\r\n\r\n")
-            response = json.loads(response_data[header_end + 4:].decode("utf-8"))
+            response = json.loads(response_data[header_end + 4 :].decode("utf-8"))
 
         assert response["error"]["code"] == -32603
         assert response["error"]["message"] == "Internal error"
@@ -132,12 +162,22 @@ class TestSecurityExceptionPassthrough:
         server = WorkshopMCPServer()
 
         with patch.object(
-            server.keyword_search_tool, "execute",
+            server.keyword_search_tool,
+            "execute",
             side_effect=RegexValidationError("Pattern rejected: nested quantifiers detected"),
         ):
             request = {
-                "jsonrpc": "2.0", "id": 1, "method": "call_tool",
-                "params": {"name": "keyword_search", "arguments": {"keyword": "(a+)+$", "root_paths": [str(tmp_path)], "use_regex": True}},
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "call_tool",
+                "params": {
+                    "name": "keyword_search",
+                    "arguments": {
+                        "keyword": "(a+)+$",
+                        "root_paths": [str(tmp_path)],
+                        "use_regex": True,
+                    },
+                },
             }
             response = server._handle_request(request)
 
@@ -155,8 +195,13 @@ class TestSecurityExceptionPassthrough:
         ]:
             with patch.object(server.keyword_search_tool, "execute", side_effect=error_class()):
                 request = {
-                    "jsonrpc": "2.0", "id": 1, "method": "call_tool",
-                    "params": {"name": "keyword_search", "arguments": {"keyword": "test", "root_paths": [str(tmp_path)]}},
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "method": "call_tool",
+                    "params": {
+                        "name": "keyword_search",
+                        "arguments": {"keyword": "test", "root_paths": [str(tmp_path)]},
+                    },
                 }
                 response = server._handle_request(request)
 
@@ -169,7 +214,9 @@ class TestSecurityExceptionPassthrough:
         server = WorkshopMCPServer()
 
         request = {
-            "jsonrpc": "2.0", "id": 1, "method": "call_tool",
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "call_tool",
             "params": {"name": "performance_check", "arguments": {"file_path": "/etc/passwd"}},
         }
         response = server._handle_request(request)
@@ -184,12 +231,18 @@ class TestSecurityExceptionPassthrough:
         server = WorkshopMCPServer()
 
         with patch.object(
-            server.keyword_search_tool, "execute",
+            server.keyword_search_tool,
+            "execute",
             side_effect=SecurityValidationError("Generic security error"),
         ):
             request = {
-                "jsonrpc": "2.0", "id": 1, "method": "call_tool",
-                "params": {"name": "keyword_search", "arguments": {"keyword": "test", "root_paths": [str(tmp_path)]}},
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "call_tool",
+                "params": {
+                    "name": "keyword_search",
+                    "arguments": {"keyword": "test", "root_paths": [str(tmp_path)]},
+                },
             }
             response = server._handle_request(request)
 

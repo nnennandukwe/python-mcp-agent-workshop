@@ -1,6 +1,7 @@
 """Tests for the AST analyzer module."""
 
 import pytest
+
 from workshop_mcp.performance_profiler.ast_analyzer import ASTAnalyzer
 
 
@@ -121,17 +122,17 @@ while True:
         loops = analyzer.get_loops()
 
         assert len(loops) == 4
-        for_loops = [l for l in loops if l.type == "for"]
-        while_loops = [l for l in loops if l.type == "while"]
+        for_loops = [lp for lp in loops if lp.type == "for"]
+        while_loops = [lp for lp in loops if lp.type == "while"]
         assert len(for_loops) == 3
         assert len(while_loops) == 1
 
         # Check nesting levels
-        nesting_levels = sorted([l.nesting_level for l in for_loops])
+        nesting_levels = sorted([lp.nesting_level for lp in for_loops])
         assert nesting_levels == [0, 1, 2]
 
         # Check parent function
-        loops_in_func = [l for l in loops if l.parent_function == "process_items"]
+        loops_in_func = [lp for lp in loops if lp.parent_function == "process_items"]
         assert len(loops_in_func) == 3
 
     def test_loop_in_async_function(self):

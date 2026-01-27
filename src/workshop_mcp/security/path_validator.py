@@ -13,7 +13,6 @@ Security principles:
 import logging
 import os
 from pathlib import Path
-from typing import List, Optional
 
 from .exceptions import PathValidationError
 
@@ -42,7 +41,7 @@ class PathValidator:
 
     ENV_VAR_NAME = "MCP_ALLOWED_ROOTS"
 
-    def __init__(self, allowed_roots: Optional[List[Path]] = None) -> None:
+    def __init__(self, allowed_roots: list[Path] | None = None) -> None:
         """Initialize the validator with allowed root directories.
 
         Args:
@@ -61,7 +60,7 @@ class PathValidator:
             len(self.allowed_roots),
         )
 
-    def _load_from_env(self) -> List[Path]:
+    def _load_from_env(self) -> list[Path]:
         """Load allowed roots from environment variable.
 
         Returns:
@@ -74,7 +73,7 @@ class PathValidator:
         if env_value:
             # Use semicolon on Windows, colon on Unix
             separator = ";" if os.name == "nt" else ":"
-            paths: List[Path] = []
+            paths: list[Path] = []
 
             for p in env_value.split(separator):
                 p = p.strip()
@@ -138,7 +137,7 @@ class PathValidator:
         )
         raise PathValidationError("Path is outside allowed directories")
 
-    def validate_multiple(self, paths: List[str]) -> List[Path]:
+    def validate_multiple(self, paths: list[str]) -> list[Path]:
         """Validate multiple paths, failing fast on the first invalid path.
 
         Args:

@@ -1,8 +1,9 @@
 """Tests for the performance checker module."""
 
 import pytest
-from workshop_mcp.performance_profiler.performance_checker import PerformanceChecker
+
 from workshop_mcp.performance_profiler.patterns import IssueCategory, Severity
+from workshop_mcp.performance_profiler.performance_checker import PerformanceChecker
 
 
 class TestPerformanceCheckerInitialization:
@@ -110,7 +111,11 @@ for i in range(10):
         issues = checker.check_inefficient_loops()
 
         assert len(issues) > 0
-        deep_loop = [i for i in issues if "nested" in i.description.lower() or "depth" in i.description.lower()]
+        deep_loop = [
+            i
+            for i in issues
+            if "nested" in i.description.lower() or "depth" in i.description.lower()
+        ]
         assert len(deep_loop) > 0
         assert deep_loop[0].category == IssueCategory.INEFFICIENT_LOOP
         assert deep_loop[0].severity == Severity.MEDIUM

@@ -29,11 +29,9 @@ poetry run pytest
 # Run tests with coverage
 poetry run pytest --cov=workshop_mcp
 
-# Format code
-poetry run black src/ tests/
-
-# Sort imports
-poetry run isort src/ tests/
+# Lint and format code
+poetry run ruff check --fix src/ tests/
+poetry run ruff format src/ tests/
 
 # Type checking
 poetry run mypy src/
@@ -45,7 +43,8 @@ poetry run mypy src/
 - **File naming**: Snake_case for Python files, lowercase for directories
 - **Function/variable naming**: Snake_case following PEP 8 conventions
 - **Class naming**: PascalCase (e.g., `KeywordSearchTool`, `WorkshopMCPServer`)
-- **Linting**: Black formatter with 88-character line length, isort for imports
+- **Linting**: Ruff for linting and formatting with 100-character line length
+- **Pre-commit**: Hooks enforce formatting, linting, and conventional commits
 
 ## Testing Guidelines
 
@@ -158,9 +157,9 @@ python-mcp-agent-workshop/
 
 ### Development Tools
 - **pytest-asyncio** - Async test execution and fixtures
-- **black** - Code formatting with 88-character line length
-- **isort** - Import sorting and organization
+- **ruff** - Fast linting and formatting (replaces black/isort)
 - **mypy** - Static type checking for code quality
+- **pre-commit** - Git hooks for automated quality checks
 
 ---
 
@@ -191,7 +190,7 @@ python-mcp-agent-workshop/
 1. **Setup**: Install dependencies with `poetry install`
 2. **Development**: Make changes to source code in `src/workshop_mcp/`
 3. **Testing**: Run `poetry run pytest` for comprehensive test validation
-4. **Quality**: Use `poetry run black` and `poetry run mypy` for code quality
+4. **Quality**: Use `poetry run ruff check --fix` and `poetry run mypy` for code quality
 5. **Integration**: Test with `poetry run workshop-mcp-server`
 
 **Code path:** `development` → `testing` → `quality checks` → `integration testing`

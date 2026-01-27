@@ -8,6 +8,7 @@ with the expected issue category.
 import json
 import pickle
 import time
+
 import requests
 from django.db import models
 
@@ -65,7 +66,7 @@ def build_report_bad(items):
     for item in items:
         # String concatenation in loop creates new string objects
         report = report + f"Item: {item}\n"  # Inefficient!
-        report += f"  Status: processed\n"  # Also inefficient!
+        report += "  Status: processed\n"  # Also inefficient!
     return report
 
 

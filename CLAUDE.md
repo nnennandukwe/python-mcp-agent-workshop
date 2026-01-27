@@ -21,7 +21,7 @@ python verification.py
 # Start the MCP server
 poetry run workshop-mcp-server
 
-# Run all tests (102 tests)
+# Run all tests (122 tests)
 poetry run pytest
 
 # Run specific test file
@@ -30,11 +30,9 @@ poetry run pytest tests/test_performance_checker.py -v
 # Run with coverage
 poetry run pytest --cov=workshop_mcp
 
-# Format code
-poetry run black src/ tests/
-
-# Sort imports
-poetry run isort src/ tests/
+# Lint and format code
+poetry run ruff check --fix src/ tests/
+poetry run ruff format src/ tests/
 
 # Type checking
 poetry run mypy src/
@@ -69,11 +67,12 @@ The performance profiler uses Astroid for semantic analysis because it provides 
 ## Code Style
 
 - Python 3.11+ required
-- Black formatter with 88-character line length
+- Ruff for linting and formatting with 100-character line length
 - Type hints required on all functions
 - Google-style docstrings
 - Snake_case for files/functions, PascalCase for classes
 - Async tests require `@pytest.mark.asyncio` decorator
+- Pre-commit hooks enforce formatting and linting on commit
 
 ## Testing
 

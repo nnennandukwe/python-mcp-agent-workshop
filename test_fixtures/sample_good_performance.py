@@ -5,7 +5,6 @@ any performance warnings from the profiler.
 """
 
 import asyncio
-import json
 from typing import AsyncIterator
 
 # Using async libraries for I/O

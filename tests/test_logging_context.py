@@ -55,8 +55,13 @@ class TestCorrelationIdFilter:
 
         # Outside context - should have default
         record_outside = logging.LogRecord(
-            name="test", level=logging.INFO, pathname="test.py",
-            lineno=1, msg="test", args=(), exc_info=None,
+            name="test",
+            level=logging.INFO,
+            pathname="test.py",
+            lineno=1,
+            msg="test",
+            args=(),
+            exc_info=None,
         )
         assert filter_instance.filter(record_outside) is True
         assert record_outside.correlation_id == "-"
@@ -64,8 +69,13 @@ class TestCorrelationIdFilter:
         # Inside context - should have context ID
         with request_context() as corr_id:
             record_inside = logging.LogRecord(
-                name="test", level=logging.INFO, pathname="test.py",
-                lineno=1, msg="test", args=(), exc_info=None,
+                name="test",
+                level=logging.INFO,
+                pathname="test.py",
+                lineno=1,
+                msg="test",
+                args=(),
+                exc_info=None,
             )
             filter_instance.filter(record_inside)
             assert record_inside.correlation_id == corr_id

@@ -4,7 +4,6 @@ Comprehensive test suite for KeywordSearchTool
 Tests cover basic functionality, edge cases, error handling, and ReDoS protection.
 """
 
-import asyncio
 import tempfile
 from pathlib import Path
 
@@ -56,12 +55,20 @@ class TestKeywordSearchBasics:
         """Test case-sensitive vs case-insensitive search."""
         result_lower = await search_tool.execute("world", [str(temp_test_directory)])
         result_upper = await search_tool.execute("WORLD", [str(temp_test_directory)])
-        result_ci = await search_tool.execute("WORLD", [str(temp_test_directory)], case_insensitive=True)
+        result_ci = await search_tool.execute(
+            "WORLD", [str(temp_test_directory)], case_insensitive=True
+        )
 
         # Case-sensitive should find different counts
-        assert result_lower["summary"]["total_occurrences"] != result_upper["summary"]["total_occurrences"]
+        assert (
+            result_lower["summary"]["total_occurrences"]
+            != result_upper["summary"]["total_occurrences"]
+        )
         # Case-insensitive should find at least as many as lowercase
-        assert result_ci["summary"]["total_occurrences"] >= result_lower["summary"]["total_occurrences"]
+        assert (
+            result_ci["summary"]["total_occurrences"]
+            >= result_lower["summary"]["total_occurrences"]
+        )
 
     @pytest.mark.asyncio
     async def test_regex_search(self, search_tool, temp_test_directory):
@@ -232,7 +239,20 @@ class TestFileTypeFiltering:
 
     def test_is_text_file_method(self, search_tool):
         """Test _is_text_file method with various extensions."""
-        supported = [".py", ".java", ".js", ".ts", ".html", ".css", ".json", ".xml", ".md", ".txt", ".yml", ".yaml"]
+        supported = [
+            ".py",
+            ".java",
+            ".js",
+            ".ts",
+            ".html",
+            ".css",
+            ".json",
+            ".xml",
+            ".md",
+            ".txt",
+            ".yml",
+            ".yaml",
+        ]
         unsupported = [".bin", ".exe", ".pdf", ".jpg", ".png", ".zip"]
 
         for ext in supported:
