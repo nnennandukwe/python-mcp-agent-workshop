@@ -1,0 +1,30 @@
+# Qodo Merge / PR-Agent configuration
+# Keep this file minimal: only override what you need.
+
+[config]
+# Helpful for debugging/iterating on configuration.
+output_relevant_configurations = true
+response_language = "en-US"
+
+[pr_reviewer]
+# Keep reviews actionable and not too noisy.
+
+publish_output_no_suggestions = true
+persistent_comment = true
+
+[pr_code_suggestions]
+# Focus on high-signal suggestions.
+commitable_code_suggestions = false
+
+extra_instructions = """
+- Prefer Pythonic patterns and stdlib solutions.
+"""
+[github_app]
+pr_commands = ["/agentic_describe", "/agentic_review"]
+
+[review_agent]
+enabled = true
+publish_output = true
+enable_issues_agent = true
+enable_compliance_agent = true
+comments_location_policy = "both"
