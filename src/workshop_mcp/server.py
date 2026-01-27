@@ -161,8 +161,9 @@ class WorkshopMCPServer:
         if not isinstance(request, dict):
             return self._error_response(None, JsonRpcError(-32600, "Invalid Request"))
 
-        if "error" in request and request.get("id") is None:
-            return request
+        # Per JSON-RPC 2.0 spec, servers must not reply to incoming responses
+        if "error" in request:
+            return None
 
         jsonrpc = request.get("jsonrpc")
         method = request.get("method")
@@ -296,7 +297,7 @@ class WorkshopMCPServer:
                             {"required": ["source_code"]},
                         ],
                     },
-                }
+                },
             ]
         }
         return self._success_response(request_id, result)
@@ -478,9 +479,7 @@ class WorkshopMCPServer:
         if file_path and source_code:
             return self._error_response(
                 request_id,
-                JsonRpcError(
-                    -32602, "Provide only one of file_path or source_code"
-                ),
+                JsonRpcError(-32602, "Provide only one of file_path or source_code"),
             )
 
         # Type check file_path before path validation
