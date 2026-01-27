@@ -9,7 +9,7 @@ python3.12 verification.py
 Expected output:
 
 ```
-✅ Python 3.11+ 
+✅ Python 3.11+
 ✅ Poetry installed
 ✅ Project structure
 ✅ Dependencies installed
@@ -36,7 +36,7 @@ Each chapter has its own branch with progressive content:
 ```bash
 # Start with setup in the main branch (00-introduction.md and 00-setup.md)
 
-# Progress through chapters  
+# Progress through chapters
 git checkout 01-keyword-search
 git checkout 02-mcp-server
 git checkout 03-agent-config

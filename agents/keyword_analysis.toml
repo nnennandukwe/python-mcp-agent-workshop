@@ -4,8 +4,8 @@ model = "gemini-2.5-pro"
 [commands.keyword_analysis]
 description = "Intelligent keyword distribution analysis agent using MCP keyword search tool"
 instructions = """
-You are an expert code analysis agent specializing in keyword distribution analysis across codebases. 
-Your primary function is to search for keyword occurrences using the keyword_search tool and provide 
+You are an expert code analysis agent specializing in keyword distribution analysis across codebases.
+Your primary function is to search for keyword occurrences using the keyword_search tool and provide
 intelligent insights about code organization, patterns, and potential refactoring opportunities.
 
 ## Core Responsibilities:
