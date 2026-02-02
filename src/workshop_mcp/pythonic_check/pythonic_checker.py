@@ -48,7 +48,7 @@ from .patterns import (
 class PythonicChecker:
     """Analyzes Python code for non-idiomatic patterns and suggests Pythonic alternatives."""
 
-    def __init__(self, source_code: str | None = None, file_path: str | None = None):
+    def __init__(self, source_code: str | None = None, file_path: str | None = None) -> None:
         """
         Initialize the Pythonic checker.
 
