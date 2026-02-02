@@ -309,8 +309,14 @@ class PerformanceChecker:
                     severity=Severity.MEDIUM,
                     line_number=try_except.line_number,
                     end_line_number=try_except.end_line_number,
-                    description="Try/except block inside loop incurs exception handling overhead on each iteration",
-                    suggestion="Move try/except outside the loop, or use conditional checks (if/else) for expected cases",
+                    description=(
+                        "Try/except block inside loop incurs exception handling "
+                        "overhead on each iteration"
+                    ),
+                    suggestion=(
+                        "Move try/except outside the loop, or use conditional "
+                        "checks (if/else) for expected cases"
+                    ),
                     code_snippet=code_snippet,
                     function_name=try_except.parent_function,
                 )
@@ -341,8 +347,14 @@ class PerformanceChecker:
                     severity=Severity.MEDIUM,
                     line_number=call.line_number,
                     end_line_number=call.line_number,
-                    description=f"Type conversion '{call.function_name}()' called inside loop creates new objects each iteration",
-                    suggestion="If converting the same value repeatedly, move the conversion outside the loop",
+                    description=(
+                        f"Type conversion '{call.function_name}()' called inside "
+                        f"loop creates new objects each iteration"
+                    ),
+                    suggestion=(
+                        "If converting the same value repeatedly, move the "
+                        "conversion outside the loop"
+                    ),
                     code_snippet=code_snippet,
                     function_name=call.parent_function,
                 )
@@ -376,7 +388,9 @@ class PerformanceChecker:
                     line_number=global_stmt.line_number,
                     end_line_number=global_stmt.line_number,
                     description=f"Function modifies global variable(s): {names_str}",
-                    suggestion="Pass values as parameters and return results instead of using global state",
+                    suggestion=(
+                        "Pass values as parameters and return results instead of using global state"
+                    ),
                     code_snippet=code_snippet,
                     function_name=global_stmt.parent_function,
                 )
