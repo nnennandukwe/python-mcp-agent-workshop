@@ -22,9 +22,9 @@ class IssueCategory(Enum):
     BLOCKING_IO_IN_ASYNC = "blocking_io_in_async"
     MISSING_ASYNC_OPPORTUNITY = "missing_async_opportunity"
     REPEATED_COMPUTATION = "repeated_computation"
-    EXCEPTION_IN_LOOP = "exception_in_loop"
-    TYPE_CONVERSION_IN_LOOP = "type_conversion_in_loop"
-    GLOBAL_MUTATION = "global_mutation"
+    EXCEPTION_IN_LOOP = "exception_in_loop"  # try/except inside loops (per-iteration overhead)
+    TYPE_CONVERSION_IN_LOOP = "type_conversion_in_loop"  # repeated int()/str()/float()/... in loops
+    GLOBAL_MUTATION = "global_mutation"  # functions using `global` to mutate module-level state
 
 
 @dataclass
