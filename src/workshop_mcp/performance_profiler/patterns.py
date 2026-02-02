@@ -22,6 +22,9 @@ class IssueCategory(Enum):
     BLOCKING_IO_IN_ASYNC = "blocking_io_in_async"
     MISSING_ASYNC_OPPORTUNITY = "missing_async_opportunity"
     REPEATED_COMPUTATION = "repeated_computation"
+    EXCEPTION_IN_LOOP = "exception_in_loop"
+    TYPE_CONVERSION_IN_LOOP = "type_conversion_in_loop"
+    GLOBAL_MUTATION = "global_mutation"
 
 
 @dataclass
@@ -337,3 +340,44 @@ def get_memory_optimization_suggestion(function_name: str, inferred_callable: st
         return "Read file in chunks or line-by-line for large files to reduce memory usage"
     else:
         return "Consider streaming or chunked processing to reduce memory usage"
+
+
+# Type conversion functions that create new objects
+TYPE_CONVERSION_FUNCTIONS = {
+    "int",
+    "str",
+    "float",
+    "bool",
+    "list",
+    "dict",
+    "set",
+    "tuple",
+    "bytes",
+    "bytearray",
+    "builtins.int",
+    "builtins.str",
+    "builtins.float",
+    "builtins.bool",
+    "builtins.list",
+    "builtins.dict",
+    "builtins.set",
+    "builtins.tuple",
+    "builtins.bytes",
+    "builtins.bytearray",
+}
+
+
+def is_type_conversion(function_name: str, inferred_callable: str | None) -> bool:
+    """
+    Check if a function call is a type conversion.
+
+    Args:
+        function_name: Name of the function being called
+        inferred_callable: Fully qualified name when available
+
+    Returns:
+        True if it's a type conversion function
+    """
+    if inferred_callable and inferred_callable in TYPE_CONVERSION_FUNCTIONS:
+        return True
+    return function_name in TYPE_CONVERSION_FUNCTIONS

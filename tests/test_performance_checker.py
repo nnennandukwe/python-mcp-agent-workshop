@@ -230,6 +230,218 @@ for user in User.objects.all():
         assert "by_category" in summary
 
 
+class TestExceptionInLoops:
+    """Test exception-in-loop detection."""
+
+    def test_detect_try_except_in_for_loop(self):
+        """Test detection of try/except inside for loop."""
+        source = """
+for item in items:
+    try:
+        process(item)
+    except ValueError:
+        handle_error(item)
+"""
+        checker = PerformanceChecker(source_code=source)
+        issues = checker.check_exception_in_loops()
+
+        assert len(issues) == 1
+        assert issues[0].category == IssueCategory.EXCEPTION_IN_LOOP
+        assert issues[0].severity == Severity.MEDIUM
+        assert "try/except" in issues[0].description.lower()
+
+    def test_detect_try_except_in_while_loop(self):
+        """Test detection of try/except inside while loop."""
+        source = """
+while running:
+    try:
+        data = fetch_data()
+    except ConnectionError:
+        retry()
+"""
+        checker = PerformanceChecker(source_code=source)
+        issues = checker.check_exception_in_loops()
+
+        assert len(issues) == 1
+        assert issues[0].category == IssueCategory.EXCEPTION_IN_LOOP
+
+    def test_no_issue_try_except_outside_loop(self):
+        """Test try/except outside loops is not flagged."""
+        source = """
+try:
+    for item in items:
+        process(item)
+except ValueError:
+    handle_error()
+"""
+        checker = PerformanceChecker(source_code=source)
+        issues = checker.check_exception_in_loops()
+        assert len(issues) == 0
+
+    def test_nested_loop_try_except(self):
+        """Test try/except in nested loop is detected."""
+        source = """
+for i in range(10):
+    for j in range(10):
+        try:
+            compute(i, j)
+        except ZeroDivisionError:
+            pass
+"""
+        checker = PerformanceChecker(source_code=source)
+        issues = checker.check_exception_in_loops()
+
+        assert len(issues) == 1
+        assert issues[0].line_number == 4
+
+
+class TestTypeConversionsInLoops:
+    """Test type conversion in loop detection."""
+
+    def test_detect_int_conversion_in_loop(self):
+        """Test detection of int() conversion inside loop."""
+        source = """
+for item in items:
+    value = int(item)
+    process(value)
+"""
+        checker = PerformanceChecker(source_code=source)
+        issues = checker.check_type_conversions_in_loops()
+
+        assert len(issues) == 1
+        assert issues[0].category == IssueCategory.TYPE_CONVERSION_IN_LOOP
+        assert issues[0].severity == Severity.MEDIUM
+        assert "int" in issues[0].description
+
+    def test_detect_multiple_conversions_in_loop(self):
+        """Test detection of multiple type conversions in loop."""
+        source = """
+for item in data:
+    x = int(item['x'])
+    y = float(item['y'])
+    name = str(item['id'])
+"""
+        checker = PerformanceChecker(source_code=source)
+        issues = checker.check_type_conversions_in_loops()
+
+        assert len(issues) == 3
+        assert all(i.category == IssueCategory.TYPE_CONVERSION_IN_LOOP for i in issues)
+
+    def test_no_issue_conversion_outside_loop(self):
+        """Test type conversions outside loops are not flagged."""
+        source = """
+value = int("42")
+items = list(range(10))
+data = dict(a=1, b=2)
+"""
+        checker = PerformanceChecker(source_code=source)
+        issues = checker.check_type_conversions_in_loops()
+        assert len(issues) == 0
+
+    def test_detect_list_dict_set_tuple_in_loop(self):
+        """Test detection of container type conversions in loop."""
+        source = """
+for item in items:
+    a = list(item)
+    b = dict(item)
+    c = set(item)
+    d = tuple(item)
+"""
+        checker = PerformanceChecker(source_code=source)
+        issues = checker.check_type_conversions_in_loops()
+
+        assert len(issues) == 4
+        conversion_types = [i.description for i in issues]
+        assert any("list" in d for d in conversion_types)
+        assert any("dict" in d for d in conversion_types)
+        assert any("set" in d for d in conversion_types)
+        assert any("tuple" in d for d in conversion_types)
+
+
+class TestGlobalMutations:
+    """Test global mutation detection."""
+
+    def test_detect_global_in_function(self):
+        """Test detection of global statement in function."""
+        source = """
+counter = 0
+
+def increment():
+    global counter
+    counter += 1
+"""
+        checker = PerformanceChecker(source_code=source)
+        issues = checker.check_global_mutations()
+
+        assert len(issues) == 1
+        assert issues[0].category == IssueCategory.GLOBAL_MUTATION
+        assert issues[0].severity == Severity.MEDIUM
+        assert "counter" in issues[0].description
+        assert issues[0].function_name == "increment"
+
+    def test_detect_multiple_globals(self):
+        """Test detection of multiple global variables."""
+        source = """
+x = 0
+y = 0
+
+def update_coords():
+    global x, y
+    x += 1
+    y += 1
+"""
+        checker = PerformanceChecker(source_code=source)
+        issues = checker.check_global_mutations()
+
+        assert len(issues) == 1
+        assert "x" in issues[0].description
+        assert "y" in issues[0].description
+
+    def test_no_issue_global_at_module_level(self):
+        """Test global at module level (outside function) is not flagged."""
+        source = """
+global_var = 10
+
+# This is at module level, not inside a function
+x = global_var + 1
+"""
+        checker = PerformanceChecker(source_code=source)
+        issues = checker.check_global_mutations()
+        assert len(issues) == 0
+
+    def test_global_in_nested_function(self):
+        """Test global in nested function is detected."""
+        source = """
+config = {}
+
+def outer():
+    def inner():
+        global config
+        config['key'] = 'value'
+    inner()
+"""
+        checker = PerformanceChecker(source_code=source)
+        issues = checker.check_global_mutations()
+
+        assert len(issues) == 1
+        assert issues[0].function_name == "inner"
+
+    def test_suggestion_recommends_parameters(self):
+        """Test suggestion recommends using parameters instead."""
+        source = """
+total = 0
+
+def add(value):
+    global total
+    total += value
+"""
+        checker = PerformanceChecker(source_code=source)
+        issues = checker.check_global_mutations()
+
+        assert len(issues) == 1
+        assert "parameter" in issues[0].suggestion.lower()
+
+
 class TestComplexScenarios:
     """Test complex real-world scenarios."""
 
