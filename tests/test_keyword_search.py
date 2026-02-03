@@ -50,6 +50,12 @@ class TestKeywordSearchBasics:
         assert result["summary"]["total_files_with_matches"] > 0
         assert result["summary"]["total_occurrences"] > 0
 
+        # Verify line numbers are included in results
+        for file_path, file_data in result["files"].items():
+            assert "lines" in file_data, f"Missing 'lines' key in {file_path}"
+            assert isinstance(file_data["lines"], list)
+            assert len(file_data["lines"]) == file_data["occurrences"]
+
     @pytest.mark.asyncio
     async def test_case_sensitivity_and_insensitive_option(self, search_tool, temp_test_directory):
         """Test case-sensitive vs case-insensitive search."""
@@ -103,6 +109,78 @@ class TestKeywordSearchBasics:
         empty = [f for f in result["files"].keys() if "empty_file.py" in f]
         assert len(empty) == 1
         assert result["files"][empty[0]]["occurrences"] == 0
+        assert result["files"][empty[0]]["lines"] == []
+
+
+class TestLineNumbers:
+    """Test line number accuracy in search results."""
+
+    @pytest.mark.asyncio
+    async def test_line_numbers_accurate(self, search_tool, tmp_path):
+        """Test line numbers accurately reflect match positions."""
+        # Create file with known content and line positions
+        content = """line1
+line2 keyword here
+line3
+line4 keyword again
+line5 keyword"""
+        (tmp_path / "test.py").write_text(content)
+
+        result = await search_tool.execute("keyword", [str(tmp_path)])
+        file_path = str(tmp_path / "test.py")
+
+        assert file_path in result["files"]
+        file_data = result["files"][file_path]
+
+        assert file_data["occurrences"] == 3
+        assert file_data["lines"] == [2, 4, 5]
+
+    @pytest.mark.asyncio
+    async def test_line_numbers_multiple_on_same_line(self, search_tool, tmp_path):
+        """Test multiple matches on same line report same line number."""
+        content = "word word word\nother line"
+        (tmp_path / "test.py").write_text(content)
+
+        result = await search_tool.execute("word", [str(tmp_path)])
+        file_path = str(tmp_path / "test.py")
+
+        assert result["files"][file_path]["occurrences"] == 3
+        assert result["files"][file_path]["lines"] == [1, 1, 1]
+
+    @pytest.mark.asyncio
+    async def test_line_numbers_case_insensitive(self, search_tool, tmp_path):
+        """Test line numbers work with case-insensitive search."""
+        content = "HELLO\nhello\nHeLLo"
+        (tmp_path / "test.py").write_text(content)
+
+        result = await search_tool.execute("hello", [str(tmp_path)], case_insensitive=True)
+        file_path = str(tmp_path / "test.py")
+
+        assert result["files"][file_path]["occurrences"] == 3
+        assert result["files"][file_path]["lines"] == [1, 2, 3]
+
+    @pytest.mark.asyncio
+    async def test_line_numbers_regex_mode(self, search_tool, tmp_path):
+        """Test line numbers work with regex search."""
+        content = "test123\nfoo\ntest456"
+        (tmp_path / "test.py").write_text(content)
+
+        result = await search_tool.execute(r"test\d+", [str(tmp_path)], use_regex=True)
+        file_path = str(tmp_path / "test.py")
+
+        assert result["files"][file_path]["occurrences"] == 2
+        assert result["files"][file_path]["lines"] == [1, 3]
+
+    @pytest.mark.asyncio
+    async def test_line_numbers_first_line(self, search_tool, tmp_path):
+        """Test match on first line returns line number 1."""
+        content = "keyword on first line"
+        (tmp_path / "test.py").write_text(content)
+
+        result = await search_tool.execute("keyword", [str(tmp_path)])
+        file_path = str(tmp_path / "test.py")
+
+        assert result["files"][file_path]["lines"] == [1]
 
 
 class TestKeywordSearchErrors:

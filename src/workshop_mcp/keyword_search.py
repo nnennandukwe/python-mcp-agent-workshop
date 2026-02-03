@@ -301,7 +301,7 @@ class KeywordSearchTool:
                 content = await file.read()
 
                 try:
-                    occurrences = self._count_occurrences(
+                    occurrences, line_numbers = self._count_occurrences(
                         content, keyword, pattern, case_insensitive
                     )
                 except TimeoutError:
@@ -320,6 +320,7 @@ class KeywordSearchTool:
 
                 result["files"][file_path_str] = {
                     "occurrences": occurrences,
+                    "lines": line_numbers,
                     "size_bytes": size_bytes,
                     "extension": file_path.suffix.lower(),
                 }
@@ -372,9 +373,9 @@ class KeywordSearchTool:
         keyword: str,
         pattern: regex.Pattern[str] | None,
         case_insensitive: bool,
-    ) -> int:
+    ) -> tuple[int, list[int]]:
         """
-        Count occurrences of keyword in content.
+        Count occurrences of keyword in content and collect line numbers.
 
         Args:
             content: File content to search
@@ -383,28 +384,46 @@ class KeywordSearchTool:
             case_insensitive: Whether to perform a case-insensitive search
 
         Returns:
-            Number of occurrences found
+            Tuple of (count, line_numbers) where line_numbers is a list of 1-indexed
+            line numbers where matches were found
 
         Raises:
             TimeoutError: If regex operation times out (1 second per file)
         """
+        line_numbers: list[int] = []
+
         if pattern is not None:
             # Use regex library with timeout for ReDoS protection
-            # Use finditer instead of findall to avoid memory exhaustion on large match counts
-            return sum(1 for _ in pattern.finditer(content, timeout=self.REGEX_TIMEOUT))
-        if case_insensitive:
+            matches = list(pattern.finditer(content, timeout=self.REGEX_TIMEOUT))
+        elif case_insensitive:
             # Use regex.finditer with IGNORECASE and timeout instead of content.lower()
             # to avoid creating a full lowercase copy of large files
-            return sum(
-                1
-                for _ in regex.finditer(
+            matches = list(
+                regex.finditer(
                     regex.escape(keyword),
                     content,
                     regex.IGNORECASE,
                     timeout=self.REGEX_TIMEOUT,
                 )
             )
-        return content.count(keyword)
+        else:
+            # For simple case-sensitive search, use regex.finditer for consistency
+            # so we can get match positions for line number calculation
+            matches = list(
+                regex.finditer(
+                    regex.escape(keyword),
+                    content,
+                    timeout=self.REGEX_TIMEOUT,
+                )
+            )
+
+        # Calculate line numbers from match positions
+        for match in matches:
+            # Count newlines before the match position, add 1 for 1-indexed line numbers
+            line_num = content[: match.start()].count("\n") + 1
+            line_numbers.append(line_num)
+
+        return len(matches), line_numbers
 
     def _should_exclude_dir(
         self,
