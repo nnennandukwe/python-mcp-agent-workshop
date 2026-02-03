@@ -23,6 +23,7 @@ extra_instructions = """
 pr_commands = ["/agentic_describe", "/agentic_review"]
 
 [review_agent]
+persistent_comment = true
 enabled = true
 publish_output = true
 enable_issues_agent = true
