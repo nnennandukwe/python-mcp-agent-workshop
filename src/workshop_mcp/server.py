@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from .complexity_analysis import analyze_complexity
+from .dead_code_detection import DeadCodeDetector
 from .keyword_search import KeywordSearchTool
 from .logging_context import CorrelationIdFilter, correlation_id_var, request_context
 from .performance_profiler import PerformanceChecker
@@ -336,6 +337,57 @@ class WorkshopMCPServer:
                         ],
                     },
                 },
+                {
+                    "name": "dead_code_detection",
+                    "description": (
+                        "Analyze Python code to detect dead and unused code including "
+                        "unused imports, unused variables, unused functions, unused "
+                        "parameters, unreachable code after return/raise, and redundant "
+                        "conditions like if True/if False."
+                    ),
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {
+                            "file_path": {
+                                "type": "string",
+                                "description": "Path to the Python file to analyze",
+                                "minLength": 1,
+                            },
+                            "source_code": {
+                                "type": "string",
+                                "description": (
+                                    "Python source code string to analyze instead of file"
+                                ),
+                            },
+                            "check_imports": {
+                                "type": "boolean",
+                                "description": "Check for unused imports (default true)",
+                                "default": True,
+                            },
+                            "check_variables": {
+                                "type": "boolean",
+                                "description": "Check for unused variables (default true)",
+                                "default": True,
+                            },
+                            "check_functions": {
+                                "type": "boolean",
+                                "description": "Check for unused functions (default true)",
+                                "default": True,
+                            },
+                            "ignore_patterns": {
+                                "type": "array",
+                                "description": (
+                                    "Regex patterns for names to ignore during analysis"
+                                ),
+                                "items": {"type": "string"},
+                            },
+                        },
+                        "oneOf": [
+                            {"required": ["file_path"]},
+                            {"required": ["source_code"]},
+                        ],
+                    },
+                },
             ]
         }
         return self._success_response(request_id, result)
@@ -356,6 +408,8 @@ class WorkshopMCPServer:
             return self._execute_performance_check(request_id, arguments)
         elif name == "complexity_analysis":
             return self._execute_complexity_analysis(request_id, arguments)
+        elif name == "dead_code_detection":
+            return self._execute_dead_code_detection(request_id, arguments)
         else:
             return self._error_response(
                 request_id,
@@ -725,6 +779,139 @@ class WorkshopMCPServer:
             )
         except Exception:
             logger.exception("Error executing complexity_analysis")
+            return self._error_response(
+                request_id,
+                JsonRpcError(
+                    -32603,
+                    "Internal error",
+                    {"correlation_id": correlation_id_var.get()},
+                ),
+            )
+
+    def _execute_dead_code_detection(
+        self, request_id: Any, arguments: dict[str, Any]
+    ) -> dict[str, Any]:
+        if not isinstance(arguments, dict):
+            return self._error_response(
+                request_id,
+                JsonRpcError(-32602, "Invalid params", {"expected": "object"}),
+            )
+
+        file_path = arguments.get("file_path")
+        source_code = arguments.get("source_code")
+
+        if not file_path and not source_code:
+            return self._error_response(
+                request_id,
+                JsonRpcError(-32602, "Either file_path or source_code must be provided"),
+            )
+        if file_path and source_code:
+            return self._error_response(
+                request_id,
+                JsonRpcError(-32602, "Provide only one of file_path or source_code"),
+            )
+
+        if file_path is not None and not isinstance(file_path, str):
+            return self._error_response(
+                request_id,
+                JsonRpcError(-32602, "file_path must be a string"),
+            )
+
+        if file_path:
+            try:
+                self.path_validator.validate_exists(file_path, must_be_file=True)
+            except PathValidationError as e:
+                return self._error_response(
+                    request_id,
+                    JsonRpcError(-32602, str(e)),
+                )
+
+        check_imports = arguments.get("check_imports", True)
+        check_variables = arguments.get("check_variables", True)
+        check_functions = arguments.get("check_functions", True)
+        ignore_patterns = arguments.get("ignore_patterns")
+
+        if ignore_patterns is not None and (
+            not isinstance(ignore_patterns, list)
+            or not all(isinstance(p, str) for p in ignore_patterns)
+        ):
+            return self._error_response(
+                request_id,
+                JsonRpcError(-32602, "ignore_patterns must be a list of strings"),
+            )
+
+        try:
+            logger.info("Executing dead code detection")
+
+            # Read source from file if needed
+            if file_path and not source_code:
+                source_code = Path(file_path).read_text(encoding="utf-8")
+
+            detector = DeadCodeDetector(
+                source_code=source_code,
+                file_path=file_path,
+                check_imports=check_imports,
+                check_variables=check_variables,
+                check_functions=check_functions,
+                ignore_patterns=ignore_patterns,
+            )
+
+            detection_result = detector.detect_all()
+
+            issues_data = [
+                {
+                    "tool": "dead_code",
+                    "category": issue.category.value,
+                    "severity": issue.severity.value,
+                    "message": issue.message,
+                    "line": issue.line,
+                    "name": issue.name,
+                    "suggestion": issue.suggestion,
+                }
+                for issue in detection_result.issues
+            ]
+
+            result = {
+                "content": [
+                    {
+                        "type": "json",
+                        "json": {
+                            "success": True,
+                            "file_analyzed": file_path or "source_code",
+                            "issues": issues_data,
+                            "summary": asdict(detection_result.summary),
+                        },
+                    }
+                ],
+            }
+            return self._success_response(request_id, result)
+
+        except ValueError as exc:
+            logger.warning("ValueError in dead_code_detection: %s", exc)
+            return self._error_response(
+                request_id,
+                JsonRpcError(-32602, "Invalid parameters"),
+            )
+        except FileNotFoundError as exc:
+            logger.warning("FileNotFoundError in dead_code_detection: %s", exc)
+            return self._error_response(
+                request_id,
+                JsonRpcError(-32602, "Resource not found"),
+            )
+        except SyntaxError as exc:
+            logger.warning("SyntaxError in dead_code_detection: %s", exc)
+            return self._error_response(
+                request_id,
+                JsonRpcError(-32602, "Invalid source code syntax"),
+            )
+        except SecurityValidationError as exc:
+            logger.warning("Security validation error: %s", exc)
+            return self._error_response(
+                request_id,
+                JsonRpcError(-32602, str(exc)),
+            )
+        except Exception:
+            logger.exception("Error executing dead_code_detection")
             return self._error_response(
                 request_id,
                 JsonRpcError(
