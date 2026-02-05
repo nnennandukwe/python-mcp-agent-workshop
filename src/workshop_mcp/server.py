@@ -10,9 +10,11 @@ import asyncio
 import json
 import logging
 import sys
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
+from pathlib import Path
 from typing import Any
 
+from .complexity_analysis import analyze_complexity
 from .keyword_search import KeywordSearchTool
 from .logging_context import CorrelationIdFilter, correlation_id_var, request_context
 from .performance_profiler import PerformanceChecker
@@ -290,6 +292,50 @@ class WorkshopMCPServer:
                         ],
                     },
                 },
+                {
+                    "name": "complexity_analysis",
+                    "description": (
+                        "Analyze Python code for complexity metrics including cyclomatic "
+                        "complexity, cognitive complexity, function length, parameter count, "
+                        "nesting depth, and class metrics. Provides actionable suggestions "
+                        "for reducing complexity."
+                    ),
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {
+                            "file_path": {
+                                "type": "string",
+                                "description": "Path to the Python file to analyze",
+                                "minLength": 1,
+                            },
+                            "source_code": {
+                                "type": "string",
+                                "description": (
+                                    "Python source code string to analyze instead of file"
+                                ),
+                            },
+                            "cyclomatic_threshold": {
+                                "type": "integer",
+                                "description": ("Cyclomatic complexity threshold (default 10)"),
+                                "default": 10,
+                            },
+                            "cognitive_threshold": {
+                                "type": "integer",
+                                "description": ("Cognitive complexity threshold (default 15)"),
+                                "default": 15,
+                            },
+                            "max_function_length": {
+                                "type": "integer",
+                                "description": ("Maximum function length in lines (default 50)"),
+                                "default": 50,
+                            },
+                        },
+                        "oneOf": [
+                            {"required": ["file_path"]},
+                            {"required": ["source_code"]},
+                        ],
+                    },
+                },
             ]
         }
         return self._success_response(request_id, result)
@@ -308,6 +354,8 @@ class WorkshopMCPServer:
             return self._execute_keyword_search(request_id, arguments)
         elif name == "performance_check":
             return self._execute_performance_check(request_id, arguments)
+        elif name == "complexity_analysis":
+            return self._execute_complexity_analysis(request_id, arguments)
         else:
             return self._error_response(
                 request_id,
@@ -562,6 +610,121 @@ class WorkshopMCPServer:
             )
         except Exception:
             logger.exception("Error executing performance_check")
+            return self._error_response(
+                request_id,
+                JsonRpcError(
+                    -32603,
+                    "Internal error",
+                    {"correlation_id": correlation_id_var.get()},
+                ),
+            )
+
+    def _execute_complexity_analysis(
+        self, request_id: Any, arguments: dict[str, Any]
+    ) -> dict[str, Any]:
+        if not isinstance(arguments, dict):
+            return self._error_response(
+                request_id,
+                JsonRpcError(-32602, "Invalid params", {"expected": "object"}),
+            )
+
+        file_path = arguments.get("file_path")
+        source_code = arguments.get("source_code")
+
+        if not file_path and not source_code:
+            return self._error_response(
+                request_id,
+                JsonRpcError(-32602, "Either file_path or source_code must be provided"),
+            )
+        if file_path and source_code:
+            return self._error_response(
+                request_id,
+                JsonRpcError(-32602, "Provide only one of file_path or source_code"),
+            )
+
+        if file_path is not None and not isinstance(file_path, str):
+            return self._error_response(
+                request_id,
+                JsonRpcError(-32602, "file_path must be a string"),
+            )
+
+        if file_path:
+            try:
+                self.path_validator.validate_exists(file_path, must_be_file=True)
+            except PathValidationError as e:
+                return self._error_response(
+                    request_id,
+                    JsonRpcError(-32602, str(e)),
+                )
+
+        cyclomatic_threshold = arguments.get("cyclomatic_threshold", 10)
+        cognitive_threshold = arguments.get("cognitive_threshold", 15)
+        max_function_length = arguments.get("max_function_length", 50)
+
+        try:
+            logger.info(
+                "Executing complexity analysis on %s",
+                file_path or "source code",
+            )
+
+            # Read source from file if needed
+            if file_path and not source_code:
+                source_code = Path(file_path).read_text(encoding="utf-8")
+
+            complexity_result = analyze_complexity(
+                source_code,
+                file_path=file_path,
+                cyclomatic_threshold=cyclomatic_threshold,
+                cognitive_threshold=cognitive_threshold,
+                max_function_length=max_function_length,
+            )
+
+            issues_data = [asdict(issue) for issue in complexity_result.issues]
+            file_metrics_data = (
+                asdict(complexity_result.file_metrics) if complexity_result.file_metrics else {}
+            )
+
+            result = {
+                "content": [
+                    {
+                        "type": "json",
+                        "json": {
+                            "success": True,
+                            "file_analyzed": file_path or "source_code",
+                            "issues": issues_data,
+                            "file_metrics": file_metrics_data,
+                        },
+                    }
+                ],
+            }
+            return self._success_response(request_id, result)
+
+        except ValueError as exc:
+            logger.warning("ValueError in complexity_analysis: %s", exc)
+            return self._error_response(
+                request_id,
+                JsonRpcError(-32602, "Invalid parameters"),
+            )
+        except FileNotFoundError as exc:
+            logger.warning("FileNotFoundError in complexity_analysis: %s", exc)
+            return self._error_response(
+                request_id,
+                JsonRpcError(-32602, "Resource not found"),
+            )
+        except SyntaxError as exc:
+            logger.warning("SyntaxError in complexity_analysis: %s", exc)
+            return self._error_response(
+                request_id,
+                JsonRpcError(-32602, "Invalid source code syntax"),
+            )
+        except SecurityValidationError as exc:
+            logger.warning("Security validation error: %s", exc)
+            return self._error_response(
+                request_id,
+                JsonRpcError(-32602, str(exc)),
+            )
+        except Exception:
+            logger.exception("Error executing complexity_analysis")
             return self._error_response(
                 request_id,
                 JsonRpcError(
