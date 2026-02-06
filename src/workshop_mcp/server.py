@@ -381,23 +381,26 @@ class WorkshopMCPServer:
 
         # Validate paths before tool execution
         try:
-            self.path_validator.validate_multiple(root_paths)
+            validated_paths = self.path_validator.validate_multiple(root_paths)
         except PathValidationError as e:
             return self._error_response(
                 request_id,
                 JsonRpcError(-32602, str(e)),
             )
 
+        # Convert validated Path objects to strings for tool execution
+        validated_path_strings = [str(p) for p in validated_paths]
+
         try:
             logger.info(
                 "Executing keyword search for '%s' in %d paths",
                 keyword,
-                len(root_paths),
+                len(validated_path_strings),
             )
             result = self.loop.run_until_complete(
                 self.keyword_search_tool.execute(
                     keyword,
-                    root_paths,
+                    validated_path_strings,
                     case_insensitive=case_insensitive,
                     use_regex=use_regex,
                     include_patterns=include_patterns,
@@ -476,9 +479,11 @@ class WorkshopMCPServer:
             )
 
         # Validate file_path before tool execution
+        validated_file_path: str | None = None
         if file_path:
             try:
-                self.path_validator.validate_exists(file_path, must_be_file=True)
+                validated_path = self.path_validator.validate_exists(file_path, must_be_file=True)
+                validated_file_path = str(validated_path)
             except PathValidationError as e:
                 return self._error_response(
                     request_id,
@@ -486,9 +491,9 @@ class WorkshopMCPServer:
                 )
 
         try:
-            if file_path:
-                logger.info("Executing performance check on file: %s", file_path)
-                checker = PerformanceChecker(file_path=file_path)
+            if validated_file_path:
+                logger.info("Executing performance check on file: %s", validated_file_path)
+                checker = PerformanceChecker(file_path=validated_file_path)
             else:
                 logger.info("Executing performance check on source code")
                 checker = PerformanceChecker(source_code=source_code)
@@ -521,7 +526,7 @@ class WorkshopMCPServer:
                         "type": "json",
                         "json": {
                             "success": True,
-                            "file_analyzed": file_path or "source_code",
+                            "file_analyzed": validated_file_path or "source_code",
                             "summary": summary,
                             "issues": issues_data,
                         },

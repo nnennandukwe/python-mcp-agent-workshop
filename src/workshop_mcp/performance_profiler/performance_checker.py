@@ -15,6 +15,7 @@ from .patterns import (
     is_inefficient_string_op,
     is_memory_intensive,
     is_orm_query,
+    is_type_conversion,
 )
 
 
@@ -54,6 +55,9 @@ class PerformanceChecker:
         issues.extend(self.check_blocking_io_in_async())
         issues.extend(self.check_inefficient_loops())
         issues.extend(self.check_memory_inefficiencies())
+        issues.extend(self.check_exception_in_loops())
+        issues.extend(self.check_type_conversions_in_loops())
+        issues.extend(self.check_global_mutations())
 
         # Sort by severity (critical first) and then by line number
         severity_order = {
@@ -275,6 +279,120 @@ class PerformanceChecker:
                     suggestion=suggestion,
                     code_snippet=code_snippet,
                     function_name=call.parent_function,
+                )
+                issues.append(issue)
+
+        return issues
+
+    def check_exception_in_loops(self) -> list[PerformanceIssue]:
+        """
+        Detect try/except blocks inside loops.
+
+        Exception handling has significant overhead in Python. When try/except
+        is used inside a loop, this overhead is incurred on every iteration.
+
+        Returns:
+            List of exception-in-loop issues
+        """
+        issues = []
+        try_excepts = self.analyzer.get_try_except_statements()
+
+        for try_except in try_excepts:
+            if try_except.is_in_loop:
+                code_snippet = self.analyzer.get_source_segment(
+                    try_except.line_number,
+                    min(try_except.line_number + 3, try_except.end_line_number),
+                )
+
+                issue = PerformanceIssue(
+                    category=IssueCategory.EXCEPTION_IN_LOOP,
+                    severity=Severity.MEDIUM,
+                    line_number=try_except.line_number,
+                    end_line_number=try_except.end_line_number,
+                    description=(
+                        "Try/except block inside loop incurs exception handling "
+                        "overhead on each iteration"
+                    ),
+                    suggestion=(
+                        "Move try/except outside the loop, or use conditional "
+                        "checks (if/else) for expected cases"
+                    ),
+                    code_snippet=code_snippet,
+                    function_name=try_except.parent_function,
+                )
+                issues.append(issue)
+
+        return issues
+
+    def check_type_conversions_in_loops(self) -> list[PerformanceIssue]:
+        """
+        Detect type conversion calls inside loops.
+
+        Type conversions like int(), str(), float() create new objects.
+        When called repeatedly in a loop, this can be inefficient if the
+        conversion could be done once outside the loop.
+
+        Returns:
+            List of type-conversion-in-loop issues
+        """
+        issues = []
+        calls = self.analyzer.get_calls()
+
+        for call in calls:
+            if call.is_in_loop and is_type_conversion(call.function_name, call.inferred_callable):
+                code_snippet = self.analyzer.get_source_segment(call.line_number, call.line_number)
+
+                issue = PerformanceIssue(
+                    category=IssueCategory.TYPE_CONVERSION_IN_LOOP,
+                    severity=Severity.MEDIUM,
+                    line_number=call.line_number,
+                    end_line_number=call.line_number,
+                    description=(
+                        f"Type conversion '{call.function_name}()' called inside "
+                        f"loop creates new objects each iteration"
+                    ),
+                    suggestion=(
+                        "If converting the same value repeatedly, move the "
+                        "conversion outside the loop"
+                    ),
+                    code_snippet=code_snippet,
+                    function_name=call.parent_function,
+                )
+                issues.append(issue)
+
+        return issues
+
+    def check_global_mutations(self) -> list[PerformanceIssue]:
+        """
+        Detect functions that mutate global state.
+
+        Functions using 'global' keyword to modify global variables make code
+        harder to reason about and can cause issues in concurrent code.
+
+        Returns:
+            List of global mutation issues
+        """
+        issues = []
+        globals_list = self.analyzer.get_global_statements()
+
+        for global_stmt in globals_list:
+            if global_stmt.parent_function:  # Only flag when inside a function
+                code_snippet = self.analyzer.get_source_segment(
+                    global_stmt.line_number, global_stmt.line_number
+                )
+
+                names_str = ", ".join(global_stmt.names)
+                issue = PerformanceIssue(
+                    category=IssueCategory.GLOBAL_MUTATION,
+                    severity=Severity.MEDIUM,
+                    line_number=global_stmt.line_number,
+                    end_line_number=global_stmt.line_number,
+                    description=f"Function modifies global variable(s): {names_str}",
+                    suggestion=(
+                        "Pass values as parameters and return results instead of using global state"
+                    ),
+                    code_snippet=code_snippet,
+                    function_name=global_stmt.parent_function,
                 )
                 issues.append(issue)
 

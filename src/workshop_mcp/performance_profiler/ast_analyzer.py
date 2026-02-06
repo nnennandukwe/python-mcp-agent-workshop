@@ -57,6 +57,25 @@ class CallInfo:
     inferred_callable: str | None  # Fully qualified name when inferred
 
 
+@dataclass
+class TryExceptInfo:
+    """Information about a try/except statement."""
+
+    line_number: int
+    end_line_number: int
+    parent_function: str | None
+    is_in_loop: bool
+
+
+@dataclass
+class GlobalInfo:
+    """Information about a global statement."""
+
+    names: list[str]
+    line_number: int
+    parent_function: str | None
+
+
 class ASTAnalyzer:
     """Analyzes Python code using Astroid for semantic understanding."""
 
@@ -97,6 +116,8 @@ class ASTAnalyzer:
         self._loops: list[LoopInfo] | None = None
         self._imports: list[ImportInfo] | None = None
         self._calls: list[CallInfo] | None = None
+        self._try_excepts: list[TryExceptInfo] | None = None
+        self._globals: list[GlobalInfo] | None = None
 
     def get_functions(self) -> list[FunctionInfo]:
         """
@@ -193,6 +214,36 @@ class ASTAnalyzer:
         self._extract_calls_recursive(self.tree, calls, None, False, False)
         self._calls = calls
         return calls
+
+    def get_try_except_statements(self) -> list[TryExceptInfo]:
+        """
+        Extract all try/except statements from the code.
+
+        Returns:
+            List of TryExceptInfo objects containing try/except metadata
+        """
+        if self._try_excepts is not None:
+            return self._try_excepts
+
+        try_excepts: list[TryExceptInfo] = []
+        self._extract_try_excepts_recursive(self.tree, try_excepts, None, False)
+        self._try_excepts = try_excepts
+        return try_excepts
+
+    def get_global_statements(self) -> list[GlobalInfo]:
+        """
+        Extract all global statements from the code.
+
+        Returns:
+            List of GlobalInfo objects containing global declaration metadata
+        """
+        if self._globals is not None:
+            return self._globals
+
+        globals_list: list[GlobalInfo] = []
+        self._extract_globals_recursive(self.tree, globals_list, None)
+        self._globals = globals_list
+        return globals_list
 
     def get_async_functions(self) -> list[FunctionInfo]:
         """
@@ -418,6 +469,62 @@ class ASTAnalyzer:
         except (astroid.InferenceError, StopIteration):
             pass
         return None
+
+    def _extract_try_excepts_recursive(
+        self,
+        node: astroid.NodeNG,
+        try_excepts: list[TryExceptInfo],
+        parent_function: str | None,
+        is_in_loop: bool,
+    ) -> None:
+        """Recursively extract try/except statements from Astroid nodes."""
+        current_function = parent_function
+        current_in_loop = is_in_loop
+
+        if isinstance(node, (astroid.FunctionDef, astroid.AsyncFunctionDef)):
+            current_function = node.name
+
+        if isinstance(node, (astroid.For, astroid.While)):
+            current_in_loop = True
+
+        if isinstance(node, astroid.Try):
+            # Only flag try blocks that have exception handlers (not just finally)
+            if node.handlers:
+                try_except_info = TryExceptInfo(
+                    line_number=node.lineno,
+                    end_line_number=node.end_lineno or node.lineno,
+                    parent_function=current_function,
+                    is_in_loop=current_in_loop,
+                )
+                try_excepts.append(try_except_info)
+
+        for child in node.get_children():
+            self._extract_try_excepts_recursive(
+                child, try_excepts, current_function, current_in_loop
+            )
+
+    def _extract_globals_recursive(
+        self,
+        node: astroid.NodeNG,
+        globals_list: list[GlobalInfo],
+        parent_function: str | None,
+    ) -> None:
+        """Recursively extract global statements from Astroid nodes."""
+        current_function = parent_function
+
+        if isinstance(node, (astroid.FunctionDef, astroid.AsyncFunctionDef)):
+            current_function = node.name
+
+        if isinstance(node, astroid.Global):
+            global_info = GlobalInfo(
+                names=list(node.names),
+                line_number=node.lineno,
+                parent_function=current_function,
+            )
+            globals_list.append(global_info)
+
+        for child in node.get_children():
+            self._extract_globals_recursive(child, globals_list, current_function)
 
     def get_source_segment(self, line_start: int, line_end: int) -> str:
         """
