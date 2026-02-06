@@ -2,35 +2,78 @@
 # Docs: https://pre-commit.com
 fail_fast: false
 
+# Use Python 3.12 for Python-based hooks unless otherwise specified.
 default_language_version:
   python: python3.12
 
 repos:
   # -----------------------------
-  # Formatters & Linters (ruff handles both)
+  # Formatters (auto-fix & re-stage)
+  # -----------------------------
+  - repo: https://github.com/psf/black
+    rev: 24.10.0
+    hooks:
+      - id: black
+        name: black (python)
+        types: [python]
+        language_version: python3.12
+
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v3.3.3
+    hooks:
+      - id: prettier
+        name: prettier (js/ts/json/yaml/md)
+        files: "\\.(js|jsx|ts|tsx|json|ya?ml|md)$"
+
+  - repo: https://github.com/pre-commit/mirrors-shfmt
+    rev: v3.9.0
+    hooks:
+      - id: shfmt
+        name: shfmt (shell)
+        files: "\\.sh$"
+        args: ["-w", "-i", "2", "-ci"]
+
+  # -----------------------------
+  # Linters (fail-fast, no auto-fix)
   # -----------------------------
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.9.6
+    rev: v0.6.9
     hooks:
       - id: ruff
-        name: ruff (lint + fix)
+        name: ruff (python lint + security)
         types: [python]
-        args: ["--fix"]
-      - id: ruff-format
-        name: ruff (format)
-        types: [python]
+        args: ["check", "--select", "E,F,W,I,B,UP,S"]
+
+  - repo: https://github.com/pre-commit/mirrors-eslint
+    rev: v9.12.0
+    hooks:
+      - id: eslint
+        name: eslint (js/ts)
+        files: "\\.(js|jsx|ts|tsx)$"
+        args: ["--max-warnings=0"]
+
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.35.1
+    hooks:
+      - id: yamllint
+        name: yamllint (yaml)
+        files: "\\.(ya?ml)$"
+
+  - repo: https://github.com/pre-commit/mirrors-shellcheck
+    rev: v0.10.0
+    hooks:
+      - id: shellcheck
+        name: shellcheck (shell)
+        files: "\\.sh$"
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v6.0.0
+    rev: v4.6.0
     hooks:
       - id: trailing-whitespace
         name: trailing whitespace (detect)
-      - id: end-of-file-fixer
-        name: end of file fixer
-      - id: check-yaml
-        name: check yaml syntax
-      - id: check-toml
-        name: check toml syntax
+      - id: mixed-line-ending
+        name: mixed line endings (detect)
+        args: ["--fix=no"]
 
   # -----------------------------
   # Security
