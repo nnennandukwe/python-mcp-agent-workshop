@@ -2,23 +2,46 @@
 
 A workshop for building AI agents using the Model Context Protocol (MCP) in Python.
 This project walks through implementing MCP server fundamentals (JSON-RPC framing,
-tool discovery, and tool execution) and ships a fully working keyword search tool
-backed by async file I/O.
+tool discovery, and tool execution) and ships two fully working tools:
+
+1. **Performance Profiler** - Semantic Python code analysis using Astroid AST parsing to detect performance anti-patterns (N+1 queries, blocking I/O in async, inefficient loops, memory issues)
+2. **Keyword Search** - Async file system search with statistical analysis
 
 ## Link to Presentation Slides
 
 [Presentation Slides](https://docs.google.com/presentation/d/1YBX8Vsso5QMDNduMP6S4g6pYUjCSisZCq69wvY4IL1c/edit?slide=id.g371d7545128_0_130#slide=id.g371d7545128_0_130)
 
 
+## Features
+
+### Performance Profiler
+The performance profiler uses Astroid for semantic AST analysis, detecting:
+
+- **N+1 Query Detection** - Identifies Django and SQLAlchemy ORM queries inside loops
+- **Blocking I/O in Async** - Finds synchronous operations (open, time.sleep, requests) in async functions
+- **Inefficient Loop Patterns** - Detects string concatenation in loops, deep nesting
+- **Memory Inefficiency Detection** - Flags loading entire files into memory (read(), json.load, pickle.load)
+
+### Keyword Search
+- Asynchronous file system search across multiple directories
+- Multi-format text file support
+- Statistical analysis and reporting
+
+### Why Astroid over Standard AST?
+
+Unlike general linters (Pylint, Flake8), the performance profiler uses **Astroid** for semantic analysis:
+
+- **Type Inference**: Understands what types variables hold, not just their names
+- **Call Resolution**: Knows which function is actually being called (e.g., Django ORM vs. regular method)
+- **Cross-module Analysis**: Can resolve imports and understand relationships
+- **Pattern Context**: Detects patterns like "ORM query inside a loop" that require understanding code structure
+
 ## Quick Start
 
-
 ```bash
-# Install the repository
+# Clone and install
 git clone <repository-url>
 cd python-mcp-agent-workshop
-
-# Install dependencies
 poetry install
 
 # Verify setup
@@ -27,11 +50,21 @@ python verification.py
 # Start the MCP server
 poetry run workshop-mcp-server
 
-# Run tests
+# Run tests (102 tests)
 poetry run pytest
 
-# Use the agent (optional, requires Qodo)
+# Use the performance profiler agent (requires Qodo)
+qodo performance_analysis --set file_path="path/to/code.py"
+
+# Use the keyword search agent (requires Qodo)
 qodo keyword_analysis --set keyword="{KEYWORD_HERE}"
+```
+
+### Testing the Performance Profiler via MCP
+
+```bash
+# Start the server and send a JSON-RPC request
+echo '{"jsonrpc":"2.0","id":1,"method":"call_tool","params":{"name":"performance_check","arguments":{"file_path":"src/workshop_mcp/server.py"}}}' | poetry run python -m workshop_mcp.server
 ```
 
 ## Learning Path (From-Scratch MCP Server)
@@ -59,6 +92,13 @@ Before starting the workshop, ensure you have the following installed:
    - Or via pip: `pip install poetry`
    - Verify: `poetry --version`
 
+### Key Dependencies
+
+The project uses these core libraries (installed via `poetry install`):
+
+- **Astroid** - Advanced AST analysis for semantic Python parsing (powers performance profiler)
+- **aiofiles** - Async file I/O operations
+
 ### Optional Tools
 
 - **Git** for version control
@@ -75,41 +115,85 @@ Before starting the workshop, ensure you have the following installed:
 This workshop demonstrates a complete MCP ecosystem implemented from scratch:
 
 ```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   AI Agent      │───▶│   MCP Server    │───▶│  Keyword Tool   │
-│(keyword_analysis│    │   (server.py)   │    │(keyword_search) │
-│     .toml)      │    │                 │    │                 │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-         │                       │                       │
-         │                       │                       ▼
-         │                       │              ┌─────────────────┐
-         │                       │              │   File System   │
-         │                       │              │   (Search)      │
-         │                       │              └─────────────────┘
-         │                       │
-         ▼                       ▼
-┌─────────────────┐    ┌─────────────────┐
-│   Analysis      │    │   JSON-RPC      │
-│   Results       │    │   Protocol      │
-└─────────────────┘    └─────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                           AI Agents                                  │
+│  ┌─────────────────────┐       ┌─────────────────────┐              │
+│  │ performance_profiler│       │  keyword_analysis   │              │
+│  │       .toml         │       │       .toml         │              │
+│  └──────────┬──────────┘       └──────────┬──────────┘              │
+└─────────────┼─────────────────────────────┼─────────────────────────┘
+              │                             │
+              ▼                             ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                        MCP Server (server.py)                        │
+│                     JSON-RPC 2.0 over stdio                          │
+├─────────────────────────────────────────────────────────────────────┤
+│  Tools:                                                              │
+│  ┌─────────────────────┐       ┌─────────────────────┐              │
+│  │  performance_check  │       │   keyword_search    │              │
+│  └──────────┬──────────┘       └──────────┬──────────┘              │
+└─────────────┼─────────────────────────────┼─────────────────────────┘
+              │                             │
+              ▼                             ▼
+┌─────────────────────────┐    ┌─────────────────────────┐
+│  Performance Profiler   │    │    Keyword Search       │
+│  ├─ AST Analyzer        │    │    (Async File I/O)     │
+│  │  (Astroid-powered)   │    │                         │
+│  ├─ Performance Checker │    │                         │
+│  └─ Pattern Detection   │    │                         │
+└─────────────────────────┘    └─────────────────────────┘
 ```
 
 ### Components
 
 1. **MCP Server** (`src/workshop_mcp/server.py`)
    - Implements MCP protocol over stdio (Content-Length framing)
-   - Exposes keyword search tool
-   - Handles JSON-RPC request routing
+   - Exposes `performance_check` and `keyword_search` tools
+   - Handles JSON-RPC request routing and error handling
 
-2. **Keyword Search Tool** (`src/workshop_mcp/keyword_search.py`)
+2. **Performance Profiler** (`src/workshop_mcp/performance_profiler/`)
+   - `ast_analyzer.py` - Astroid-based semantic AST analysis
+   - `performance_checker.py` - Issue detection and reporting
+   - `patterns.py` - Anti-pattern definitions (ORM queries, blocking I/O, etc.)
+
+3. **Keyword Search Tool** (`src/workshop_mcp/keyword_search.py`)
    - Asynchronous file system search
    - Multi-format text file support
    - Statistical analysis and reporting
 
-3. **AI Agent** (`agents/keyword_analysis.toml`)
-   - Keyword analysis prompt and configuration for Qodo Command
+4. **AI Agents** (`agents/`)
+   - `performance_profiler.toml` - Performance analysis agent (Gemini 2.5 Pro)
+   - `keyword_analysis.toml` - Keyword search agent
 
 ## Usage Examples
+
+### Performance Profiler (Programmatic)
+
+```python
+from workshop_mcp.performance_profiler import PerformanceChecker
+
+# Analyze a file
+checker = PerformanceChecker(file_path="path/to/code.py")
+issues = checker.check_all()
+
+for issue in issues:
+    print(f"[{issue.severity.value}] {issue.category.value}")
+    print(f"  Line {issue.line_number}: {issue.description}")
+    print(f"  Suggestion: {issue.suggestion}")
+
+# Get summary
+summary = checker.get_summary()
+print(f"Total issues: {summary['total_issues']}")
+print(f"Critical: {summary['by_severity']['critical']}")
+
+# Analyze source code directly
+checker = PerformanceChecker(source_code="""
+async def fetch_users():
+    with open('data.json') as f:  # Blocking I/O in async!
+        return json.load(f)
+""")
+issues = checker.check_all()
+```
 
 ### Basic Keyword Search
 
@@ -136,24 +220,43 @@ poetry run python -m workshop_mcp.server
 ### Agent Analysis
 
 ```bash
+# Run performance analysis agent
+qodo performance_analysis --set file_path="src/workshop_mcp/server.py"
+
 # Run keyword analysis agent
 qodo keyword_analysis --set keyword="{KEYWORD_HERE}"
 ```
 
-### Testing
+### Understanding Performance Profiler Output
 
-```bash
-# Run all tests
-poetry run pytest
+The performance profiler returns issues with severity levels:
 
-# Run with coverage
-poetry run pytest --cov=workshop_mcp
+| Severity | Description |
+|----------|-------------|
+| CRITICAL | Blocking I/O in async functions - blocks entire event loop |
+| HIGH | N+1 queries, memory inefficiencies - significant performance impact |
+| MEDIUM | Inefficient loops, string concatenation - moderate impact |
+| LOW | Minor optimizations, style suggestions |
 
-# Run specific test file
-poetry run pytest tests/test_keyword_search.py -v
-
-# Run with detailed output
-poetry run pytest -v --tb=long
+Example output structure:
+```json
+{
+  "summary": {
+    "total_issues": 3,
+    "by_severity": {"critical": 1, "high": 1, "medium": 1, "low": 0},
+    "by_category": {"blocking_io_in_async": 1, "n_plus_one_query": 1, "inefficient_loop": 1}
+  },
+  "issues": [
+    {
+      "category": "blocking_io_in_async",
+      "severity": "critical",
+      "line_number": 15,
+      "description": "Blocking I/O operation 'open' in async function",
+      "suggestion": "Use aiofiles.open for async file operations",
+      "function_name": "fetch_data"
+    }
+  ]
+}
 ```
 
 ## Development Setup
@@ -213,29 +316,59 @@ python-mcp-agent-workshop/
 ├── verification.py             # Setup verification script
 ├── agent.toml                  # Top-level agent configuration
 ├── mcp.json                    # MCP configuration metadata
-├── demo.py                     # Demo script
 │
 ├── src/workshop_mcp/           # Main package
 │   ├── __init__.py             # Package initialization
 │   ├── server.py               # MCP server implementation
-│   └── keyword_search.py       # Keyword search tool
+│   ├── keyword_search.py       # Keyword search tool
+│   └── performance_profiler/   # Performance analysis module
+│       ├── __init__.py         # Module exports
+│       ├── ast_analyzer.py     # Astroid-based AST analysis
+│       ├── patterns.py         # Anti-pattern definitions
+│       └── performance_checker.py  # Issue detection
 │
 ├── agents/                     # Agent configurations
-│   └── keyword_analysis.toml   # Keyword analysis agent
+│   ├── keyword_analysis.toml   # Keyword search agent
+│   └── performance_profiler.toml   # Performance analysis agent
 │
-└── tests/                      # Test suite
-    ├── __init__.py             # Test package init
-    └── test_keyword_search.py  # Comprehensive tests
+├── tests/                      # Test suite (102 tests)
+│   ├── test_keyword_search.py      # Keyword search tests (15)
+│   ├── test_ast_analyzer.py        # AST analyzer tests (41)
+│   ├── test_performance_checker.py # Performance checker tests (31)
+│   ├── test_mcp_server_integration.py  # MCP integration tests (10)
+│   ├── test_mcp_server_protocol.py # Protocol tests (5)
+│   ├── test_agent_config.py        # Agent config validation
+│   └── test_e2e_workflow.py        # End-to-end workflow tests
 ```
 
 ## Testing Strategy
 
-The project includes tests covering:
+The project includes **102 tests** covering:
 
-### Unit Tests
-- **Basic functionality**: Keyword search across files
-- **Edge cases**: Empty files, binary files, and invalid input handling
-- **Concurrency**: Async operations and multi-directory searches
+### Test Suites
+- **AST Analyzer** (41 tests): Function extraction, loop detection, import analysis, call tracking
+- **Performance Checker** (31 tests): N+1 queries, blocking I/O, inefficient loops, memory issues
+- **Keyword Search** (15 tests): File search, edge cases, concurrency
+- **MCP Integration** (10 tests): Tool registration, JSON-RPC handling, error responses
+- **Protocol Tests** (5 tests): Message framing, content-length parsing
+- **E2E Workflow**: Complete agent workflow validation
+- **Agent Config**: TOML validation, output schema verification
+
+### Running Tests
+
+```bash
+# Run all tests
+poetry run pytest
+
+# Run with verbose output
+poetry run pytest -v
+
+# Run specific test file
+poetry run pytest tests/test_performance_checker.py -v
+
+# Run with coverage
+poetry run pytest --cov=workshop_mcp
+```
 
 ## Troubleshooting
 
@@ -323,8 +456,16 @@ This checks:
 - Follow PEP 8 style guidelines
 - Add type hints to all functions
 - Write comprehensive docstrings
-- Include unit tests for new features
+- **Test-driven development**: Write tests before implementing features
+- Include unit tests for new features (maintain 102+ test count)
 - Update documentation as needed
+
+### Adding New Performance Checks
+
+1. Define the pattern in `src/workshop_mcp/performance_profiler/patterns.py`
+2. Add detection logic in `performance_checker.py`
+3. Write tests in `tests/test_performance_checker.py`
+4. Update documentation
 
 ## License
 
