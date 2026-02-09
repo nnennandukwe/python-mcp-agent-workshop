@@ -22,6 +22,10 @@ extra_instructions = """
 [github_app]
 pr_commands = ["/agentic_describe", "/agentic_review"]
 
+[azure_devops_server]
+pr_commands = ["/agentic_describe", "/agentic_review", "/compliance"]
+push_commands = ["/agentic_describe", "/agentic_review", "/compliance"]
+
 [review_agent]
 persistent_comment = true
 enabled = true
