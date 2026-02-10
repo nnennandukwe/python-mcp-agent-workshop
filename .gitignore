@@ -199,3 +199,6 @@ mcp_logs/
 # Workshop specific
 workshop_temp/
 test_output/.env
+
+# Entire
+.entire/
