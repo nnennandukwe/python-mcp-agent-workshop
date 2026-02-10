@@ -1,0 +1,398 @@
+# Resolve Reviews
+
+<objective>
+Resolve all actionable Qodo review comments on the specified GitHub PR.
+
+Fetch inline review comments, parse Qodo's structured format, prioritize by severity,
+build a dependency graph, and resolve fixes — using agent teammates for parallel
+execution when items target independent files. Retry failed fixes with error context.
+Commit each resolution individually, then prompt to push.
+</objective>
+
+<context>
+PR number: 49
+
+Design reference (parsing format, data model, priority table):
+@.claude/docs/resolve-reviews-design.md
+</context>
+
+<process>
+
+## 1. PRE-FLIGHT CHECKS
+
+Run these checks before any work. Abort with a clear message if any fail.
+
+### 1.1 Validate PR argument
+
+If `49` is empty or not a number, abort:
+"Usage: /resolve-reviews <pr-number>"
+
+### 1.2 Check GitHub CLI authentication
+
+```bash
+gh auth status
+```
+
+If not authenticated, abort: "GitHub CLI not authenticated. Run `gh auth login` first."
+
+### 1.3 Get PR details and validate branch
+
+```bash
+gh pr view 49 --json number,title,url,headRefName,state
+```
+
+- If the PR does not exist, abort: "PR #N not found."
+- If the PR is not open, warn: "PR #N is [state]. Continuing anyway."
+- Store `headRefName` as the expected branch.
+
+### 1.4 Verify current branch matches PR
+
+```bash
+git branch --show-current
+```
+
+If the current branch does not match the PR's `headRefName`, abort:
+"You're on `<current>` but PR #N targets `<expected>`. Switch first:
+  git checkout <expected>"
+
+### 1.5 Check for clean working tree
+
+```bash
+git status --porcelain
+```
+
+If output is not empty, abort:
+"Working tree has uncommitted changes. Commit or stash them first."
+
+### 1.6 Check not on protected branch
+
+If current branch is `main` or `master`, abort:
+"Cannot commit directly to `<branch>`. Check out the PR branch first."
+
+### 1.7 Display pre-flight results
+
+```
+Pre-flight checks...
+  ✓ Working tree clean
+  ✓ On branch <branch> (matches PR #N)
+  ✓ GitHub CLI authenticated
+```
+
+---
+
+## 2. FETCH & PARSE QODO COMMENTS
+
+### 2.1 Detect repository
+
+```bash
+gh repo view --json nameWithOwner -q .nameWithOwner
+```
+
+Store as `OWNER/REPO` for API calls.
+
+### 2.2 Fetch inline review comments (paginated)
+
+```bash
+gh api --paginate repos/{OWNER/REPO}/pulls/{PR_NUMBER}/comments
+```
+
+This returns ALL inline review comments (Qodo posts inline, not as general PR comments).
+
+### 2.3 Filter for Qodo comments
+
+From the JSON response, keep only comments where:
+```
+comment["user"]["login"] == "qodo-code-review[bot]"
+```
+
+If no Qodo comments found, display:
+"No Qodo review comments found on PR #N."
+and exit.
+
+### 2.4 Parse each Qodo comment into an ActionableItem
+
+For each Qodo comment, apply this parsing sequence:
+
+**Step 1 — Check actionability:**
+Look for `alt="Action required"` in the comment body.
+If not found, skip this comment (it's informational only).
+
+**Step 2 — Extract priority from category codes:**
+
+| Indicator in body | Priority |
+|-------------------|----------|
+| `⛨ Security` | P0 |
+| `🐞 Bug` | P0 |
+| `⛯ Reliability` | P1 |
+| `✓ Correctness` | P2 |
+| `📘 Rule violation` | P2 |
+| No indicator | P2 (default) |
+
+**Step 3 — Extract the agent prompt:**
+Use regex with DOTALL mode to extract from the `<details>` block:
+```
+<summary>\s*<strong>Agent prompt</strong>.*?```\n?(.*?)```
+```
+If no match, this item cannot be resolved automatically — skip it with:
+"Skipping comment #ID: could not extract fix instructions."
+
+**Step 4 — Extract title:**
+From the numbered description line in the body, e.g.:
+`1. <b><i>method_name</i></b> description text`
+Extract the description text after the closing `</b>` tag.
+
+**Step 5 — Extract category:**
+From emoji-tagged code blocks: `⛨ Security`, `⛯ Reliability`, `✓ Correctness`, `📘 Rule violation`.
+
+**Step 6 — Extract location from API fields (NOT from body):**
+```
+primary_file = comment["path"]
+end_line = comment["line"] OR comment["original_line"]   (fallback for null)
+start_line = comment["start_line"] OR comment["original_start_line"] OR end_line
+```
+
+IMPORTANT: `line` and `start_line` can be `null` in the API response. Always fall back to `original_line` / `original_start_line`.
+
+**Step 7 — Parse Fix Focus Areas for multi-file support:**
+Search the agent prompt for lines matching:
+```
+- filepath[line_start-line_end]
+```
+Example:
+```
+- src/workshop_mcp/server.py[632-646]
+- src/workshop_mcp/security/path_validator.py[102-132]
+```
+
+Build an `affected_files` list of all files mentioned. If no Fix Focus Areas found, use only the `primary_file` from the API.
+
+**Step 8 — Build ActionableItem:**
+```
+ActionableItem:
+  id: comment["id"]
+  priority: <from step 2>
+  primary_file: <from step 6>
+  affected_files: <from step 7, list of (file, start_line, end_line)>
+  line_range: (start_line, end_line)
+  agent_prompt: <from step 3>
+  title: <from step 4>
+  category: <from step 5>
+```
+
+### 2.5 Check for actionable items
+
+If no actionable items were parsed, display:
+"No actionable review items found on PR #N. All comments are informational."
+and exit.
+
+---
+
+## 3. BUILD DEPENDENCY GRAPH & DISPLAY PLAN
+
+### 3.1 Sort items by priority
+
+Sort all ActionableItems by priority (P0 first, then P1, then P2).
+
+### 3.2 Build file dependency groups
+
+Group items by their **full set of affected files** (not just primary_file).
+Two items that share ANY affected file must be in the same group and resolved sequentially (in priority order).
+
+Example:
+- Item A affects `server.py`
+- Item B affects `server.py`, `path_validator.py`, `pythonic_checker.py`
+- Item C affects `utils.py`
+
+→ Group 1: [A, B] (share `server.py`) — sequential
+→ Group 2: [C] — independent
+→ Groups 1 and 2 can run in PARALLEL
+
+### 3.3 Display the plan
+
+```
+Found N actionable items from Qodo:
+
+  P0  ▸ <title>    <primary_file>:<start>-<end>
+        + <additional_file>:<start>-<end>     (if multi-file)
+  P1  ▸ <title>    <file>:<start>-<end>
+  ...
+
+Execution plan:
+  Sequential group 1 (<shared_file>): items #1, #2
+  Sequential group 2 (<shared_file>): items #3, #4
+  → Groups resolve in parallel via agent teammates
+
+Resolving issues...
+```
+
+---
+
+## 4. RESOLVE WITH AGENT TEAMMATES
+
+### 4.1 Determine execution strategy
+
+- If there is only 1 group, resolve items sequentially (no teammates needed).
+- If there are 2+ independent groups, spawn agent teammates for parallel execution.
+
+### 4.2 Spawn agent teammates for parallel groups
+
+For each independent file group, spawn an agent teammate using the Task tool:
+
+```
+Task(
+  subagent_type: "general-purpose",
+  name: "resolver-<group_number>",
+  prompt: <see below>,
+  run_in_background: true
+)
+```
+
+Each teammate receives a prompt containing:
+1. The list of ActionableItems in their group (in priority order)
+2. The resolve-or-escalate instructions (step 4.3)
+3. Instructions to stage files after each successful fix (but NOT commit — the lead agent commits)
+
+### 4.3 Resolve-or-escalate loop (for each item)
+
+Whether resolved by the lead agent or a teammate, each item follows this loop:
+
+```
+For each ActionableItem in the group (priority order):
+    attempt = 1
+    max_attempts = 3
+
+    while attempt <= max_attempts:
+        1. Read ALL affected files for this item
+        2. Apply the fix using the agent_prompt as guidance
+           - The agent_prompt contains issue description, context, and fix focus areas
+           - Use the line_range as advisory context, not as exact edit boundaries
+           - For multi-file fixes, modify ALL affected files as needed
+        3. Validate ALL modified files:
+           python -m py_compile <file>   (for each modified .py file)
+        4. If ALL valid:
+           - Stage all modified files: git add <file1> <file2> ...
+           - Record success: store title, files modified, attempt number
+           - Break (success)
+        5. If ANY invalid:
+           a. Capture the error message
+           b. Restore ALL modified files: git checkout -- <file1> <file2> ...
+           c. Increment attempt
+           d. On next attempt, include error context:
+              "Previous attempt #N failed because: <error>.
+               Adjust your approach to avoid this issue."
+
+    If all 3 attempts fail:
+        - Restore all files to clean state: git checkout -- <files>
+        - Record failure: store title, last error, attempt count
+        - Continue to next item in the group
+```
+
+IMPORTANT: Between items that share files, always re-read the file fresh.
+The previous fix may have changed line numbers.
+
+### 4.4 Collect results from teammates
+
+Wait for all agent teammates to complete. Collect their results:
+- Which items were resolved (with file lists and attempt counts)
+- Which items failed (with last error messages)
+
+### 4.5 Create commits (lead agent only)
+
+For each successfully resolved item (in priority order across all groups):
+
+```bash
+git commit -m "$(cat <<'EOF'
+fix(<primary_file_basename>): <title>
+
+Resolves Qodo review comment #<comment_id>
+Priority: P<n> (<category>)
+
+PR: #<pr_number>
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+EOF
+)"
+```
+
+Note: Files are already staged by the resolve loop (step 4.3). The commit just records the staged changes.
+
+If teammates staged files, verify the staging is correct before committing.
+
+---
+
+## 5. SUMMARY & PUSH PROMPT
+
+### 5.1 Display summary
+
+```
+  ✓ Fixed <title> (<short_commit_hash>)
+  ✓ Fixed <title> across N files (<hash>)  [retry 2/3 — first attempt had <error>]
+  ✗ Could not resolve <title> after 3 attempts
+    Last error: <error_message>
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+N/M issues resolved. [K failed after retries (see above).]
+```
+
+### 5.2 Push prompt
+
+If any items were resolved (commits exist):
+
+Use AskUserQuestion to ask:
+"Push N commits to origin/<branch>?"
+Options: Yes, No
+
+If Yes:
+```bash
+git push origin <branch>
+```
+
+If No:
+"Commits remain local. Push manually when ready:
+  git push origin <branch>"
+
+### 5.3 Handle zero resolutions
+
+If no items were resolved (all failed):
+"0/N issues could be resolved automatically. Review the errors above and fix manually."
+Do not prompt to push.
+
+</process>
+
+<success_criteria>
+- [ ] Pre-flight checks verified (clean tree, correct branch, gh auth)
+- [ ] All Qodo review comments fetched and parsed
+- [ ] Actionable items identified and prioritized
+- [ ] Multi-file fixes handled (all affected files modified and validated)
+- [ ] Agent teammates used for parallel resolution of independent file groups
+- [ ] Failed fixes retried up to 3 times with error context
+- [ ] One commit per resolved item with conventional commit format
+- [ ] Summary displayed with success/failure/retry counts
+- [ ] User prompted to push (or informed if nothing to push)
+</success_criteria>
+
+---
+
+1.
+
+---
+
+Were you able to view the agent prompts from Qodo's output?
+
+---
+
+The issue below was found during a code review. Follow the provided context and guidance below and implement a solution
+
+## Issue description
+The server validates `file_path` but discards the returned canonical `Path` and later re-reads using the original string. This creates a TOCTOU gap and weakens the guarantees provided by canonicalized validation.
+### Issue Context
+`PathValidator.validate()` explicitly resolves the path (including symlink resolution) before checking containment under allowed roots.
+### Fix Focus Areas
+- src/workshop_mcp/server.py[632-646]
+- src/workshop_mcp/security/path_validator.py[102-132]
+- src/workshop_mcp/pythonic_check/pythonic_checker.py[67-72]
+
+---
+
+yes, commit it and push to that branch.

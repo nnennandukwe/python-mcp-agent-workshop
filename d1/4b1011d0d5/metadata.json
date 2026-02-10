@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "d14b1011d0d5",
+  "strategy": "manual-commit",
+  "branch": "feat/pythonic-checker-42",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "src/workshop_mcp/server.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/d1/4b1011d0d5/0/metadata.json",
+      "transcript": "/d1/4b1011d0d5/0/full.jsonl",
+      "context": "/d1/4b1011d0d5/0/context.md",
+      "content_hash": "/d1/4b1011d0d5/0/content_hash.txt",
+      "prompt": "/d1/4b1011d0d5/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 21,
+    "cache_creation_tokens": 9748,
+    "cache_read_tokens": 1113486,
+    "output_tokens": 1144,
+    "api_call_count": 15
+  }
+}
