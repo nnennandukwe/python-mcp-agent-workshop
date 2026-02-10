@@ -629,6 +629,13 @@ class WorkshopMCPServer:
                 JsonRpcError(-32602, "file_path must be a string"),
             )
 
+        # Type check source_code before use
+        if source_code is not None and not isinstance(source_code, str):
+            return self._error_response(
+                request_id,
+                JsonRpcError(-32602, "source_code must be a string"),
+            )
+
         # Validate file_path before tool execution
         if file_path:
             try:
