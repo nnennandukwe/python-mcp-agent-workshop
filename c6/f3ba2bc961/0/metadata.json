@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "c6f3ba2bc961",
+  "session_id": "e5fcf5e5-de60-491b-8913-d6d105614a14",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-10T20:53:23.472846Z",
+  "branch": "feat/resolve-reviews-skill",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "tests/test_subprocess_transport.py"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "8f1056f5-1e19-40d1-9d67-4ef9706963d0",
+  "token_usage": {
+    "input_tokens": 21,
+    "cache_creation_tokens": 42345,
+    "cache_read_tokens": 756061,
+    "output_tokens": 2225,
+    "api_call_count": 16
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-10T20:53:23.44418Z",
+    "agent_lines": 0,
+    "human_added": 0,
+    "human_modified": 414,
+    "human_removed": 98,
+    "total_committed": 4,
+    "agent_percentage": 0
+  }
+}
