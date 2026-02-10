@@ -11,6 +11,7 @@ import json
 import logging
 import sys
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 from .keyword_search import KeywordSearchTool
@@ -649,13 +650,16 @@ class WorkshopMCPServer:
                     JsonRpcError(-32602, str(e)),
                 )
 
+        # Read file at the trust boundary using the validated path,
+        # then pass content downstream to avoid a second filesystem access (TOCTOU).
+        if validated_path:
+            logger.info("Executing pythonic check on file: %s", validated_path)
+            source_code = Path(validated_path).read_text(encoding="utf-8")
+        else:
+            logger.info("Executing pythonic check on source code")
+
         try:
-            if validated_path:
-                logger.info("Executing pythonic check on file: %s", validated_path)
-                checker = PythonicChecker(file_path=validated_path)
-            else:
-                logger.info("Executing pythonic check on source code")
-                checker = PythonicChecker(source_code=source_code)
+            checker = PythonicChecker(source_code=source_code)
 
             # Run all pythonic checks
             issues = checker.check_all()
