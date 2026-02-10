@@ -637,9 +637,12 @@ class WorkshopMCPServer:
             )
 
         # Validate file_path before tool execution
+        validated_path: str | None = None
         if file_path:
             try:
-                self.path_validator.validate_exists(file_path, must_be_file=True)
+                validated_path = str(
+                    self.path_validator.validate_exists(file_path, must_be_file=True)
+                )
             except PathValidationError as e:
                 return self._error_response(
                     request_id,
@@ -647,9 +650,9 @@ class WorkshopMCPServer:
                 )
 
         try:
-            if file_path:
-                logger.info("Executing pythonic check on file: %s", file_path)
-                checker = PythonicChecker(file_path=file_path)
+            if validated_path:
+                logger.info("Executing pythonic check on file: %s", validated_path)
+                checker = PythonicChecker(file_path=validated_path)
             else:
                 logger.info("Executing pythonic check on source code")
                 checker = PythonicChecker(source_code=source_code)
