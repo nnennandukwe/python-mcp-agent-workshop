@@ -51,6 +51,9 @@ class TestExampleClient:
             f"--- stderr ---\n{client_result.stderr}"
         )
         assert "All examples completed!" in client_result.stdout
+        assert "Traceback" not in client_result.stderr, (
+            f"Server logged unexpected traceback\n--- stderr ---\n{client_result.stderr}"
+        )
 
     def test_client_output_contains_all_example_sections(
         self, client_result: subprocess.CompletedProcess[str]
@@ -75,3 +78,36 @@ class TestExampleClient:
             assert section in client_result.stdout, (
                 f"Missing section: {section!r}\n--- stdout ---\n{client_result.stdout}"
             )
+
+    def test_tool_outputs_contain_meaningful_results(
+        self, client_result: subprocess.CompletedProcess[str]
+    ) -> None:
+        """Tools return substantive output, not empty or error responses."""
+        if client_result.returncode != 0:
+            pytest.skip(
+                f"Client script failed (exit {client_result.returncode}); skipping output verification"
+            )
+
+        stdout = client_result.stdout
+
+        # Example 3: performance_check detects blocking I/O in async code
+        assert "Total Issues:" in stdout, (
+            f"Example 3 missing 'Total Issues:' — profiler may have returned empty results\n"
+            f"--- stdout ---\n{stdout}"
+        )
+        assert "[CRITICAL]" in stdout, (
+            f"Example 3 missing '[CRITICAL]' — expected blocking I/O severity\n"
+            f"--- stdout ---\n{stdout}"
+        )
+
+        # Example 4: keyword_search finds occurrences of "async"
+        assert "Total occurrences:" in stdout, (
+            f"Example 4 missing 'Total occurrences:' — search may have returned no results\n"
+            f"--- stdout ---\n{stdout}"
+        )
+
+        # Example 5: error handling surfaces structured error response
+        assert "Error Code:" in stdout, (
+            f"Example 5 missing 'Error Code:' — server may not have returned a JSON-RPC error\n"
+            f"--- stdout ---\n{stdout}"
+        )
