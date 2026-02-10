@@ -13,8 +13,9 @@ import signal
 import subprocess
 import sys
 import threading
+from collections.abc import Generator
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
@@ -113,7 +114,7 @@ class MCPSubprocessClient:
 
         # Read body
         body = self._read_bytes(content_length)
-        return json.loads(body.decode("utf-8"))
+        return cast(dict[str, Any], json.loads(body.decode("utf-8")))
 
     def close(self) -> int:
         """Close stdin, wait for exit, return exit code."""
@@ -179,7 +180,7 @@ class MCPSubprocessClient:
 
 
 @pytest.fixture
-def client() -> MCPSubprocessClient:
+def client() -> Generator[MCPSubprocessClient, None, None]:
     """Create and start a client, clean up on teardown."""
     c = MCPSubprocessClient()
     c.start()
