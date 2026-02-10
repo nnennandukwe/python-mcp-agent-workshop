@@ -61,6 +61,10 @@ class PythonicChecker:
             SyntaxError: If the source code has syntax errors
             FileNotFoundError: If file_path doesn't exist
         """
+        # Normalize empty/whitespace-only strings to None
+        if file_path is not None and not file_path.strip():
+            file_path = None
+
         if source_code is None and file_path is None:
             raise ValueError("Either source_code or file_path must be provided")
 
