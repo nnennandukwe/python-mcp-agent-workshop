@@ -1,0 +1,1172 @@
+Push the latest commit for the PR branch that we were just working on.
+
+---
+
+# Create a plan for a new feature or bug fix
+
+## Introduction
+
+**Note: The current year is 2026.** Use this when dating plans and searching for recent documentation.
+
+Transform feature descriptions, bug reports, or improvement ideas into well-structured markdown files issues that follow project conventions and best practices. This command provides flexible detail levels to match your needs.
+
+## Feature Description
+
+<feature_description> #I have a Claude code review with Qodo Resolve skill that I need to resume planning for. </feature_description>
+
+**If the feature description above is empty, ask the user:** "What would you like to plan? Please describe the feature, bug fix, or improvement you have in mind."
+
+Do not proceed until you have a clear feature description from the user.
+
+### 0. Idea Refinement
+
+**Check for brainstorm output first:**
+
+Before asking questions, look for recent brainstorm documents in `docs/brainstorms/` that match this feature:
+
+```bash
+ls -la docs/brainstorms/*.md 2>/dev/null | head -10
+```
+
+**Relevance criteria:** A brainstorm is relevant if:
+- The topic (from filename or YAML frontmatter) semantically matches the feature description
+- Created within the last 14 days
+- If multiple candidates match, use the most recent one
+
+**If a relevant brainstorm exists:**
+1. Read the brainstorm document
+2. Announce: "Found brainstorm from [date]: [topic]. Using as context for planning."
+3. Extract key decisions, chosen approach, and open questions
+4. **Skip the idea refinement questions below** - the brainstorm already answered WHAT to build
+5. Use brainstorm decisions as input to the research phase
+
+**If multiple brainstorms could match:**
+Use **AskUserQuestion tool** to ask which brainstorm to use, or whether to proceed without one.
+
+**If no brainstorm found (or not relevant), run idea refinement:**
+
+Refine the idea through collaborative dialogue using the **AskUserQuestion tool**:
+
+- Ask questions one at a time to understand the idea fully
+- Prefer multiple choice questions when natural options exist
+- Focus on understanding: purpose, constraints and success criteria
+- Continue until the idea is clear OR user says "proceed"
+
+**Gather signals for research decision.** During refinement, note:
+
+- **User's familiarity**: Do they know the codebase patterns? Are they pointing to examples?
+- **User's intent**: Speed vs thoroughness? Exploration vs execution?
+- **Topic risk**: Security, payments, external APIs warrant more caution
+- **Uncertainty level**: Is the approach clear or open-ended?
+
+**Skip option:** If the feature description is already detailed, offer:
+"Your description is clear. Should I proceed with research, or would you like to refine it further?"
+
+## Main Tasks
+
+### 1. Local Research (Always Runs - Parallel)
+
+<thinking>
+First, I need to understand the project's conventions, existing patterns, and any documented learnings. This is fast and local - it informs whether external research is needed.
+</thinking>
+
+Run these agents **in parallel** to gather local context:
+
+- Task repo-research-analyst(feature_description)
+- Task learnings-researcher(feature_description)
+
+**What to look for:**
+- **Repo research:** existing patterns, CLAUDE.md guidance, technology familiarity, pattern consistency
+- **Learnings:** documented solutions in `docs/solutions/` that might apply (gotchas, patterns, lessons learned)
+
+These findings inform the next step.
+
+### 1.5. Research Decision
+
+Based on signals from Step 0 and findings from Step 1, decide on external research.
+
+**High-risk topics → always research.** Security, payments, external APIs, data privacy. The cost of missing something is too high. This takes precedence over speed signals.
+
+**Strong local context → skip external research.** Codebase has good patterns, CLAUDE.md has guidance, user knows what they want. External research adds little value.
+
+**Uncertainty or unfamiliar territory → research.** User is exploring, codebase has no examples, new technology. External perspective is valuable.
+
+**Announce the decision and proceed.** Brief explanation, then continue. User can redirect if needed.
+
+Examples:
+- "Your codebase has solid patterns for this. Proceeding without external research."
+- "This involves payment processing, so I'll research current best practices first."
+
+### 1.5b. External Research (Conditional)
+
+**Only run if Step 1.5 indicates external research is valuable.**
+
+Run these agents in parallel:
+
+- Task best-practices-researcher(feature_description)
+- Task framework-docs-researcher(feature_description)
+
+### 1.6. Consolidate Research
+
+After all research steps complete, consolidate findings:
+
+- Document relevant file paths from repo research (e.g., `app/services/example_service.rb:42`)
+- **Include relevant institutional learnings** from `docs/solutions/` (key insights, gotchas to avoid)
+- Note external documentation URLs and best practices (if external research was done)
+- List related issues or PRs discovered
+- Capture CLAUDE.md conventions
+
+**Optional validation:** Briefly summarize findings and ask if anything looks off or missing before proceeding to planning.
+
+### 2. Issue Planning & Structure
+
+<thinking>
+Think like a product manager - what would make this issue clear and actionable? Consider multiple perspectives
+</thinking>
+
+**Title & Categorization:**
+
+- [ ] Draft clear, searchable issue title using conventional format (e.g., `feat: Add user authentication`, `fix: Cart total calculation`)
+- [ ] Determine issue type: enhancement, bug, refactor
+- [ ] Convert title to filename: add today's date prefix, strip prefix colon, kebab-case, add `-plan` suffix
+  - Example: `feat: Add User Authentication` → `2026-01-21-feat-add-user-authentication-plan.md`
+  - Keep it descriptive (3-5 words after prefix) so plans are findable by context
+
+**Stakeholder Analysis:**
+
+- [ ] Identify who will be affected by this issue (end users, developers, operations)
+- [ ] Consider implementation complexity and required expertise
+
+**Content Planning:**
+
+- [ ] Choose appropriate detail level based on issue complexity and audience
+- [ ] List all necessary sections for the chosen template
+- [ ] Gather supporting materials (error logs, screenshots, design mockups)
+- [ ] Prepare code examples or reproduction steps if applicable, name the mock filenames in the lists
+
+### 3. SpecFlow Analysis
+
+After planning the issue structure, run SpecFlow Analyzer to validate and refine the feature specification:
+
+- Task spec-flow-analyzer(feature_description, research_findings)
+
+**SpecFlow Analyzer Output:**
+
+- [ ] Review SpecFlow analysis results
+- [ ] Incorporate any identified gaps or edge cases into the issue
+- [ ] Update acceptance criteria based on SpecFlow findings
+
+### 4. Choose Implementation Detail Level
+
+Select how comprehensive you want the issue to be, simpler is mostly better.
+
+#### 📄 MINIMAL (Quick Issue)
+
+**Best for:** Simple bugs, small improvements, clear features
+
+**Includes:**
+
+- Problem statement or feature description
+- Basic acceptance criteria
+- Essential context only
+
+**Structure:**
+
+````markdown
+---
+title: [Issue Title]
+type: [feat|fix|refactor]
+date: YYYY-MM-DD
+---
+
+# [Issue Title]
+
+[Brief problem/feature description]
+
+## Acceptance Criteria
+
+- [ ] Core requirement 1
+- [ ] Core requirement 2
+
+## Context
+
+[Any critical information]
+
+## MVP
+
+### test.rb
+
+```ruby
+class Test
+  def initialize
+    @name = "test"
+  end
+end
+```
+
+## References
+
+- Related issue: #[issue_number]
+- Documentation: [relevant_docs_url]
+````
+
+#### 📋 MORE (Standard Issue)
+
+**Best for:** Most features, complex bugs, team collaboration
+
+**Includes everything from MINIMAL plus:**
+
+- Detailed background and motivation
+- Technical considerations
+- Success metrics
+- Dependencies and risks
+- Basic implementation suggestions
+
+**Structure:**
+
+```markdown
+---
+title: [Issue Title]
+type: [feat|fix|refactor]
+date: YYYY-MM-DD
+---
+
+# [Issue Title]
+
+## Overview
+
+[Comprehensive description]
+
+## Problem Statement / Motivation
+
+[Why this matters]
+
+## Proposed Solution
+
+[High-level approach]
+
+## Technical Considerations
+
+- Architecture impacts
+- Performance implications
+- Security considerations
+
+## Acceptance Criteria
+
+- [ ] Detailed requirement 1
+- [ ] Detailed requirement 2
+- [ ] Testing requirements
+
+## Success Metrics
+
+[How we measure success]
+
+## Dependencies & Risks
+
+[What could block or complicate this]
+
+## References & Research
+
+- Similar implementations: [file_path:line_number]
+- Best practices: [documentation_url]
+- Related PRs: #[pr_number]
+```
+
+#### 📚 A LOT (Comprehensive Issue)
+
+**Best for:** Major features, architectural changes, complex integrations
+
+**Includes everything from MORE plus:**
+
+- Detailed implementation plan with phases
+- Alternative approaches considered
+- Extensive technical specifications
+- Resource requirements and timeline
+- Future considerations and extensibility
+- Risk mitigation strategies
+- Documentation requirements
+
+**Structure:**
+
+```markdown
+---
+title: [Issue Title]
+type: [feat|fix|refactor]
+date: YYYY-MM-DD
+---
+
+# [Issue Title]
+
+## Overview
+
+[Executive summary]
+
+## Problem Statement
+
+[Detailed problem analysis]
+
+## Proposed Solution
+
+[Comprehensive solution design]
+
+## Technical Approach
+
+### Architecture
+
+[Detailed technical design]
+
+### Implementation Phases
+
+#### Phase 1: [Foundation]
+
+- Tasks and deliverables
+- Success criteria
+- Estimated effort
+
+#### Phase 2: [Core Implementation]
+
+- Tasks and deliverables
+- Success criteria
+- Estimated effort
+
+#### Phase 3: [Polish & Optimization]
+
+- Tasks and deliverables
+- Success criteria
+- Estimated effort
+
+## Alternative Approaches Considered
+
+[Other solutions evaluated and why rejected]
+
+## Acceptance Criteria
+
+### Functional Requirements
+
+- [ ] Detailed functional criteria
+
+### Non-Functional Requirements
+
+- [ ] Performance targets
+- [ ] Security requirements
+- [ ] Accessibility standards
+
+### Quality Gates
+
+- [ ] Test coverage requirements
+- [ ] Documentation completeness
+- [ ] Code review approval
+
+## Success Metrics
+
+[Detailed KPIs and measurement methods]
+
+## Dependencies & Prerequisites
+
+[Detailed dependency analysis]
+
+## Risk Analysis & Mitigation
+
+[Comprehensive risk assessment]
+
+## Resource Requirements
+
+[Team, time, infrastructure needs]
+
+## Future Considerations
+
+[Extensibility and long-term vision]
+
+## Documentation Plan
+
+[What docs need updating]
+
+## References & Research
+
+### Internal References
+
+- Architecture decisions: [file_path:line_number]
+- Similar features: [file_path:line_number]
+- Configuration: [file_path:line_number]
+
+### External References
+
+- Framework documentation: [url]
+- Best practices guide: [url]
+- Industry standards: [url]
+
+### Related Work
+
+- Previous PRs: #[pr_numbers]
+- Related issues: #[issue_numbers]
+- Design documents: [links]
+```
+
+### 5. Issue Creation & Formatting
+
+<thinking>
+Apply best practices for clarity and actionability, making the issue easy to scan and understand
+</thinking>
+
+**Content Formatting:**
+
+- [ ] Use clear, descriptive headings with proper hierarchy (##, ###)
+- [ ] Include code examples in triple backticks with language syntax highlighting
+- [ ] Add screenshots/mockups if UI-related (drag & drop or use image hosting)
+- [ ] Use task lists (- [ ]) for trackable items that can be checked off
+- [ ] Add collapsible sections for lengthy logs or optional details using `<details>` tags
+- [ ] Apply appropriate emoji for visual scanning (🐛 bug, ✨ feature, 📚 docs, ♻️ refactor)
+
+**Cross-Referencing:**
+
+- [ ] Link to related issues/PRs using #number format
+- [ ] Reference specific commits with SHA hashes when relevant
+- [ ] Link to code using GitHub's permalink feature (press 'y' for permanent link)
+- [ ] Mention relevant team members with @username if needed
+- [ ] Add links to external resources with descriptive text
+
+**Code & Examples:**
+
+````markdown
+# Good example with syntax highlighting and line references
+
+
+```ruby
+# app/services/user_service.rb:42
+def process_user(user)
+
+# Implementation here
+
+end
+```
+
+# Collapsible error logs
+
+<details>
+<summary>Full error stacktrace</summary>
+
+`Error details here...`
+
+</details>
+````
+
+**AI-Era Considerations:**
+
+- [ ] Account for accelerated development with AI pair programming
+- [ ] Include prompts or instructions that worked well during research
+- [ ] Note which AI tools were used for initial exploration (Claude, Copilot, etc.)
+- [ ] Emphasize comprehensive testing given rapid implementation
+- [ ] Document any AI-generated code that needs human review
+
+### 6. Final Review & Submission
+
+**Pre-submission Checklist:**
+
+- [ ] Title is searchable and descriptive
+- [ ] Labels accurately categorize the issue
+- [ ] All template sections are complete
+- [ ] Links and references are working
+- [ ] Acceptance criteria are measurable
+- [ ] Add names of files in pseudo code examples and todo lists
+- [ ] Add an ERD mermaid diagram if applicable for new model changes
+
+## Output Format
+
+**Filename:** Use the date and kebab-case filename from Step 2 Title & Categorization.
+
+```
+docs/plans/YYYY-MM-DD-<type>-<descriptive-name>-plan.md
+```
+
+Examples:
+- ✅ `docs/plans/2026-01-15-feat-user-authentication-flow-plan.md`
+- ✅ `docs/plans/2026-02-03-fix-checkout-race-condition-plan.md`
+- ✅ `docs/plans/2026-03-10-refactor-api-client-extraction-plan.md`
+- ❌ `docs/plans/2026-01-15-feat-thing-plan.md` (not descriptive - what "thing"?)
+- ❌ `docs/plans/2026-01-15-feat-new-feature-plan.md` (too vague - what feature?)
+- ❌ `docs/plans/2026-01-15-feat: user auth-plan.md` (invalid characters - colon and space)
+- ❌ `docs/plans/feat-user-auth-plan.md` (missing date prefix)
+
+## Post-Generation Options
+
+After writing the plan file, use the **AskUserQuestion tool** to present these options:
+
+**Question:** "Plan ready at `docs/plans/YYYY-MM-DD-<type>-<name>-plan.md`. What would you like to do next?"
+
+**Options:**
+1. **Open plan in editor** - Open the plan file for review
+2. **Run `/deepen-plan`** - Enhance each section with parallel research agents (best practices, performance, UI)
+3. **Run `/technical_review`** - Technical feedback from code-focused reviewers (DHH, Kieran, Simplicity)
+4. **Review and refine** - Improve the document through structured self-review
+5. **Start `/workflows:work`** - Begin implementing this plan locally
+6. **Start `/workflows:work` on remote** - Begin implementing in Claude Code on the web (use `&` to run in background)
+7. **Create Issue** - Create issue in project tracker (GitHub/Linear)
+
+Based on selection:
+- **Open plan in editor** → Run `open docs/plans/<plan_filename>.md` to open the file in the user's default editor
+- **`/deepen-plan`** → Call the /deepen-plan command with the plan file path to enhance with research
+- **`/technical_review`** → Call the /technical_review command with the plan file path
+- **Review and refine** → Load `document-review` skill.
+- **`/workflows:work`** → Call the /workflows:work command with the plan file path
+- **`/workflows:work` on remote** → Run `/workflows:work docs/plans/<plan_filename>.md &` to start work in background for Claude Code web
+- **Create Issue** → See "Issue Creation" section below
+- **Other** (automatically provided) → Accept free text for rework or specific changes
+
+**Note:** If running `/workflows:plan` with ultrathink enabled, automatically run `/deepen-plan` after plan creation for maximum depth and grounding.
+
+Loop back to options after Simplify or Other changes until user selects `/workflows:work` or `/technical_review`.
+
+## Issue Creation
+
+When user selects "Create Issue", detect their project tracker from CLAUDE.md:
+
+1. **Check for tracker preference** in user's CLAUDE.md (global or project):
+   - Look for `project_tracker: github` or `project_tracker: linear`
+   - Or look for mentions of "GitHub Issues" or "Linear" in their workflow section
+
+2. **If GitHub:**
+
+   Use the title and type from Step 2 (already in context - no need to re-read the file):
+
+   ```bash
+   gh issue create --title "<type>: <title>" --body-file <plan_path>
+   ```
+
+3. **If Linear:**
+
+   ```bash
+   linear issue create --title "<title>" --description "$(cat <plan_path>)"
+   ```
+
+4. **If no tracker configured:**
+   Ask user: "Which project tracker do you use? (GitHub/Linear/Other)"
+   - Suggest adding `project_tracker: github` or `project_tracker: linear` to their CLAUDE.md
+
+5. **After creation:**
+   - Display the issue URL
+   - Ask if they want to proceed to `/workflows:work` or `/technical_review`
+
+NEVER CODE! Just research and write the plan.
+
+---
+
+<task-notification>
+<task-id>aa3a4f9</task-id>
+<status>completed</status>
+<summary>Agent "Research learnings for skill" completed</summary>
+<result>Perfect! Now I have all the relevant institutional knowledge. Let me prepare a comprehensive summary document.
+
+## Institutional Learnings Search Results
+
+### Search Context
+- **Feature/Task**: Planning a `/resolve-reviews` Claude Code skill that autonomously resolves Qodo code review comments on GitHub PRs
+- **Keywords Used**: Claude Code skills, GitHub API usage, code review automation, Qodo integration, git commit automation
+- **Documentation Found**: Comprehensive design document + git integration patterns + project architecture
+- **Relevant Matches**: 3 key documents with complete guidance
+
+---
+
+## Critical Institutional Knowledge
+
+### 1. Comprehensive Design Document Already Exists
+**File**: `/Users/nnennandukwe/Code/python-mcp-agent-workshop/.claude/docs/resolve-reviews-design.md`
+
+This is a complete design specification for the `/resolve-reviews` skill covering:
+- Full execution flow with clear UX
+- Qodo comment parsing strategy with exact HTML structure patterns
+- Data model and commit message format
+- Failure handling guidelines
+- GitHub API commands to use
+- Priority normalization table
+- User experience examples (both success and failure scenarios)
+
+**Key Insight**: The design already specifies exact parsing regex patterns for extracting agent prompts from Qodo comments:
+```python
+r'<summary>\s*<strong>Agent prompt</strong>.*?```\n?(.*?)```'
+```
+
+This is critical because agent prompts are nested within HTML `<details>` tags and require DOTALL mode regex to capture across newlines.
+
+### 2. Git Commit Strategy from GSD Framework
+**File**: `/Users/nnennandukwe/Code/python-mcp-agent-workshop/.claude/get-shit-done/references/git-integration.md`
+
+**Relevant Pattern**: Per-task commits with structured format
+
+The project uses atomic, granular commit strategy:
+
+```
+fix(<file>): <brief description>
+
+- [Key change 1]
+- [Key change 2]
+```
+
+**Direct Application to `/resolve-reviews`**: The design document already specifies this format for Qodo resolution:
+```
+fix(<file>): <brief description from issue title>
+
+Resolves Qodo review comment #<comment_id>
+Priority: P<n> (<category>)
+
+PR: #<pr_number>
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+```
+
+**Key Insight**: Use `Co-Authored-By: Claude Opus 4.6` (not 4.5) - the design document shows this needs updating to reflect the latest model.
+
+### 3. GitHub API Usage Patterns
+**File**: `/Users/nnennandukwe/Code/python-mcp-agent-workshop/.claude/docs/resolve-reviews-design.md` (GitHub API Commands section)
+
+The design specifies exact GitHub CLI (`gh`) commands needed:
+
+```bash
+# Get PR details (validates PR exists + gets branch info)
+gh pr view <pr> --json number,title,url,headRefName
+
+# Get inline review comments (WHERE Qodo ACTUALLY POSTS)
+gh api repos/{owner}/{repo}/pulls/{pr}/comments
+
+# Get general PR comments (summary posts - less useful)
+gh api repos/{owner}/{repo}/issues/{pr}/comments
+```
+
+**Critical Gotcha**: Qodo posts inline comments (at specific lines), NOT summary comments. You must use the `/pulls/{pr}/comments` endpoint, not `/issues/{pr}/comments`.
+
+---
+
+## Actionable Recommendations
+
+### 1. Complete Data Model Implementation
+The design document provides a ready-to-implement dataclass:
+
+```python
+@dataclass
+class ActionableItem:
+    id: str                      # Comment ID for tracking
+    priority: int                # 0=P0 (highest), 1=P1, 2=P2
+    file_path: str               # Path to file
+    line_range: tuple[int, int]  # (start, end) lines
+    agent_prompt: str            # Qodo's structured prompt for fix
+    title: str                   # Brief description from issue title
+    category: str                # Security, Reliability, Correctness
+```
+
+### 2. Parsing Order is Critical
+Follow this exact sequence when processing Qodo comments:
+1. **Check actionability** - Look for `alt="Action required"` in HTML body
+2. **Extract priority** - Use emoji indicators (⛨ Security → P0, 🐞 Bug → P0, ⛯ Reliability → P1, etc.)
+3. **Extract agent prompt** - Use regex with DOTALL mode from HTML details block
+4. **Extract location** - Use API fields (`path`, `start_line`, `line`), NOT body parsing
+5. **Build ActionableItem** - Normalize all data into common format
+
+### 3. Failure Handling is Core Requirement
+The skill must be resilient:
+- **Fix cannot be applied** → Log error, continue to next
+- **Merge conflict** → Skip item, include in summary
+- **File doesn't exist** → Skip item, include in summary
+- **Syntax error after fix** → Do NOT commit, skip and continue
+
+**Key Insight**: Never stop the entire run for a single failure. The skill should resolve as many issues as possible and report on failures at the end.
+
+### 4. User Experience Flow
+The design specifies exact messaging:
+1. Fetch PR comments and show plan: "Found N actionable items from Qodo: [list]"
+2. Autonomous execution: "✓ Fixed [issue] ([commit_hash])" for each
+3. Final prompt: "Push N commits to origin/[branch]?" with [Yes] [No] buttons
+
+### 5. Skill File Template Location
+Create the skill at: `/Users/nnennandukwe/Code/python-mcp-agent-workshop/.claude/skills/resolve-reviews.md`
+
+Use YAML frontmatter format:
+```markdown
+---
+name: resolve-reviews
+description: Autonomously resolve Qodo code review comments on a PR
+arguments:
+  - name: pr
+    description: PR number or URL
+    required: true
+---
+
+# Resolve Reviews
+
+[Detailed instructions for Claude...]
+```
+
+---
+
+## Priority Normalization Reference
+
+Keep this mapping handy for parsing Qodo comments:
+
+| Qodo Indicator | Normalized Priority | Action |
+|---|---|---|
+| ⛨ Security | P0 | Fix first |
+| 🐞 Bug | P0 | Fix first |
+| ⛯ Reliability | P1 | Fix after P0 |
+| ✓ Correctness | P2 | Fix after P1 |
+| 📘 Rule violation | P2 | Fix after P1 |
+| No indicator | P2 | Default |
+
+---
+
+## Existing Project Context
+
+The codebase this skill targets:
+- **Project**: Python MCP Agent Workshop (educational MCP server implementation)
+- **Current Branch**: `feat/subprocess-transport-tests`
+- **Recent Work**: Transport layer tests, ADO integration
+- **Architecture**: MCP server with Performance Profiler + Keyword Search tools
+
+The `/resolve-reviews` skill will be used to fix Qodo review comments on PRs for this workshop project itself.
+
+---
+
+## Summary
+
+You have comprehensive guidance already documented. The `/resolve-reviews` skill implementation should:
+
+1. **Use the design document as your specification** - it's production-ready
+2. **Follow GSD commit patterns** - atomic per-issue commits with co-authorship
+3. **Leverage exact GitHub API commands** - specified in the design
+4. **Implement robust failure handling** - continue on errors, report summary
+5. **Create skill file with YAML frontmatter** - place in `.claude/skills/`
+6. **Update model reference** - change Claude Opus 4.5 to 4.6 in commit co-authorship
+
+The design document is thorough enough to serve as implementation requirements. Start by implementing the parsing logic, then the execution flow, then the skill interface wrapper.</result>
+<usage>total_tokens: 38907
+tool_uses: 19
+duration_ms: 47315</usage>
+</task-notification>
+Full transcript available at: REDACTED.output
+
+---
+
+# Work Plan Execution Command
+
+Execute a work plan efficiently while maintaining quality and finishing features.
+
+## Introduction
+
+This command takes a work document (plan, specification, or todo file) and executes it systematically. The focus is on **shipping complete features** by understanding requirements quickly, following existing patterns, and maintaining quality throughout.
+
+## Input Document
+
+<input_document> #docs/plans/2026-02-10-feat-resolve-reviews-claude-code-skill-plan.md </input_document>
+
+## Execution Workflow
+
+### Phase 1: Quick Start
+
+1. **Read Plan and Clarify**
+
+   - Read the work document completely
+   - Review any references or links provided in the plan
+   - If anything is unclear or ambiguous, ask clarifying questions now
+   - Get user approval to proceed
+   - **Do not skip this** - better to ask questions now than build the wrong thing
+
+2. **Setup Environment**
+
+   First, check the current branch:
+
+   ```bash
+   current_branch=$(git branch --show-current)
+   default_branch=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@')
+
+   # Fallback if remote HEAD isn't set
+   if [ -z "$default_branch" ]; then
+     default_branch=$(git rev-parse --verify origin/main >/dev/null 2>&1 && echo "main" || echo "master")
+   fi
+   ```
+
+   **If already on a feature branch** (not the default branch):
+   - Ask: "Continue working on `[current_branch]`, or create a new branch?"
+   - If continuing, proceed to step 3
+   - If creating new, follow Option A or B below
+
+   **If on the default branch**, choose how to proceed:
+
+   **Option A: Create a new branch**
+   ```bash
+   git pull origin [default_branch]
+   git checkout -b feature-branch-name
+   ```
+   Use a meaningful name based on the work (e.g., `feat/user-authentication`, `fix/email-validation`).
+
+   **Option B: Use a worktree (recommended for parallel development)**
+   ```bash
+   skill: git-worktree
+   # The skill will create a new branch from the default branch in an isolated worktree
+   ```
+
+   **Option C: Continue on the default branch**
+   - Requires explicit user confirmation
+   - Only proceed after user explicitly says "yes, commit to [default_branch]"
+   - Never commit directly to the default branch without explicit permission
+
+   **Recommendation**: Use worktree if:
+   - You want to work on multiple features simultaneously
+   - You want to keep the default branch clean while experimenting
+   - You plan to switch between branches frequently
+
+3. **Create Todo List**
+   - Use TodoWrite to break plan into actionable tasks
+   - Include dependencies between tasks
+   - Prioritize based on what needs to be done first
+   - Include testing and quality check tasks
+   - Keep tasks specific and completable
+
+### Phase 2: Execute
+
+1. **Task Execution Loop**
+
+   For each task in priority order:
+
+   ```
+   while (tasks remain):
+     - Mark task as in_progress in TodoWrite
+     - Read any referenced files from the plan
+     - Look for similar patterns in codebase
+     - Implement following existing conventions
+     - Write tests for new functionality
+     - Run tests after changes
+     - Mark task as completed in TodoWrite
+     - Mark off the corresponding checkbox in the plan file ([ ] → [x])
+     - Evaluate for incremental commit (see below)
+   ```
+
+   **IMPORTANT**: Always update the original plan document by checking off completed items. Use the Edit tool to change `- [ ]` to `- [x]` for each task you finish. This keeps the plan as a living document showing progress and ensures no checkboxes are left unchecked.
+
+2. **Incremental Commits**
+
+   After completing each task, evaluate whether to create an incremental commit:
+
+   | Commit when... | Don't commit when... |
+   |----------------|---------------------|
+   | Logical unit complete (model, service, component) | Small part of a larger unit |
+   | Tests pass + meaningful progress | Tests failing |
+   | About to switch contexts (backend → frontend) | Purely scaffolding with no behavior |
+   | About to attempt risky/uncertain changes | Would need a "WIP" commit message |
+
+   **Heuristic:** "Can I write a commit message that describes a complete, valuable change? If yes, commit. If the message would be 'WIP' or 'partial X', wait."
+
+   **Commit workflow:**
+   ```bash
+   # 1. Verify tests pass (use project's test command)
+   # Examples: bin/rails test, npm test, pytest, go test, etc.
+
+   # 2. Stage only files related to this logical unit (not `git add .`)
+   git add <files related to this logical unit>
+
+   # 3. Commit with conventional message
+   git commit -m "feat(scope): description of this unit"
+   ```
+
+   **Handling merge conflicts:** If conflicts arise during rebasing or merging, resolve them immediately. Incremental commits make conflict resolution easier since each commit is small and focused.
+
+   **Note:** Incremental commits use clean conventional messages without attribution footers. The final Phase 4 commit/PR includes the full attribution.
+
+3. **Follow Existing Patterns**
+
+   - The plan should reference similar code - read those files first
+   - Match naming conventions exactly
+   - Reuse existing components where possible
+   - Follow project coding standards (see CLAUDE.md)
+   - When in doubt, grep for similar implementations
+
+4. **Test Continuously**
+
+   - Run relevant tests after each significant change
+   - Don't wait until the end to test
+   - Fix failures immediately
+   - Add new tests for new functionality
+
+5. **Figma Design Sync** (if applicable)
+
+   For UI work with Figma designs:
+
+   - Implement components following design specs
+   - Use figma-design-sync agent iteratively to compare
+   - Fix visual differences identified
+   - Repeat until implementation matches design
+
+6. **Track Progress**
+   - Keep TodoWrite updated as you complete tasks
+   - Note any blockers or unexpected discoveries
+   - Create new tasks if scope expands
+   - Keep user informed of major milestones
+
+### Phase 3: Quality Check
+
+1. **Run Core Quality Checks**
+
+   Always run before submitting:
+
+   ```bash
+   # Run full test suite (use project's test command)
+   # Examples: bin/rails test, npm test, pytest, go test, etc.
+
+   # Run linting (per CLAUDE.md)
+   # Use linting-agent before pushing to origin
+   ```
+
+2. **Consider Reviewer Agents** (Optional)
+
+   Use for complex, risky, or large changes:
+
+   - **code-simplicity-reviewer**: Check for unnecessary complexity
+   - **kieran-rails-reviewer**: Verify Rails conventions (Rails projects)
+   - **performance-oracle**: Check for performance issues
+   - **security-sentinel**: Scan for security vulnerabilities
+   - **cora-test-reviewer**: Review test quality (Rails projects with comprehensive test coverage)
+
+   Run reviewers in parallel with Task tool:
+
+   ```
+   Task(code-simplicity-reviewer): "Review changes for simplicity"
+   Task(kieran-rails-reviewer): "Check Rails conventions"
+   ```
+
+   Present findings to user and address critical issues.
+
+3. **Final Validation**
+   - All TodoWrite tasks marked completed
+   - All tests pass
+   - Linting passes
+   - Code follows existing patterns
+   - Figma designs match (if applicable)
+   - No console errors or warnings
+
+### Phase 4: Ship It
+
+1. **Create Commit**
+
+   ```bash
+   git add .
+   git status  # Review what's being committed
+   git diff --staged  # Check the changes
+
+   # Commit with conventional format
+   git commit -m "$(cat <<'EOF'
+   feat(scope): description of what and why
+
+   Brief explanation if needed.
+
+   🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+   Co-Authored-By: Claude <noreply@anthropic.com>
+   EOF
+   )"
+   ```
+
+2. **Capture and Upload Screenshots for UI Changes** (REQUIRED for any UI work)
+
+   For **any** design changes, new views, or UI modifications, you MUST capture and upload screenshots:
+
+   **Step 1: Start dev server** (if not running)
+   ```bash
+   bin/dev  # Run in background
+   ```
+
+   **Step 2: Capture screenshots with agent-browser CLI**
+   ```bash
+   agent-browser open http://localhost:3000/[route]
+   agent-browser snapshot -i
+   agent-browser screenshot output.png
+   ```
+   See the `agent-browser` skill for detailed usage.
+
+   **Step 3: Upload using imgup skill**
+   ```bash
+   skill: imgup
+   # Then upload each screenshot:
+   imgup -h pixhost screenshot.png  # pixhost works without API key
+   # Alternative hosts: catbox, imagebin, beeimg
+   ```
+
+   **What to capture:**
+   - **New screens**: Screenshot of the new UI
+   - **Modified screens**: Before AND after screenshots
+   - **Design implementation**: Screenshot showing Figma design match
+
+   **IMPORTANT**: Always include uploaded image URLs in PR description. This provides visual context for reviewers and documents the change.
+
+3. **Create Pull Request**
+
+   ```bash
+   git push -u origin feature-branch-name
+
+   gh pr create --title "Feature: [Description]" --body "$(cat <<'EOF'
+   ## Summary
+   - What was built
+   - Why it was needed
+   - Key decisions made
+
+   ## Testing
+   - Tests added/modified
+   - Manual testing performed
+
+   ## Before / After Screenshots
+   | Before | After |
+   |--------|-------|
+   | ![before](URL) | ![after](URL) |
+
+   ## Figma Design
+   [Link if applicable]
+
+   ---
+
+   [![Compound Engineered](https://img.shields.io/badge/Compound-Engineered-6366f1)](https://github.com/EveryInc/compound-engineering-plugin) 🤖 Generated with [Claude Code](https://claude.com/claude-code)
+   EOF
+   )"
+   ```
+
+4. **Notify User**
+   - Summarize what was completed
+   - Link to PR
+   - Note any follow-up work needed
+   - Suggest next steps if applicable
+
+---
+
+## Swarm Mode (Optional)
+
+For complex plans with multiple independent workstreams, enable swarm mode for parallel execution with coordinated agents.
+
+### When to Use Swarm Mode
+
+| Use Swarm Mode when... | Use Standard Mode when... |
+|------------------------|---------------------------|
+| Plan has 5+ independent tasks | Plan is linear/sequential |
+| Multiple specialists needed (review + test + implement) | Single-focus work |
+| Want maximum parallelism | Simpler mental model preferred |
+| Large feature with clear phases | Small feature or bug fix |
+
+### Enabling Swarm Mode
+
+To trigger swarm execution, say:
+
+> "Make a Task list and launch an army of agent swarm subagents to build the plan"
+
+Or explicitly request: "Use swarm mode for this work"
+
+### Swarm Workflow
+
+When swarm mode is enabled, the workflow changes:
+
+1. **Create Team**
+   ```
+   Teammate({ operation: "spawnTeam", team_name: "work-{timestamp}" })
+   ```
+
+2. **Create Task List with Dependencies**
+   - Parse plan into TaskCreate items
+   - Set up blockedBy relationships for sequential dependencies
+   - Independent tasks have no blockers (can run in parallel)
+
+3. **Spawn Specialized Teammates**
+   ```
+   Task({
+     team_name: "work-{timestamp}",
+     name: "implementer",
+     subagent_type: "general-purpose",
+     prompt: "Claim implementation tasks, execute, mark complete",
+     run_in_background: true
+   })
+
+   Task({
+     team_name: "work-{timestamp}",
+     name: "tester",
+     subagent_type: "general-purpose",
+     prompt: "Claim testing tasks, run tests, mark complete",
+     run_in_background: true
+   })
+   ```
+
+4. **Coordinate and Monitor**
+   - Team lead monitors task completion
+   - Spawn additional workers as phases unblock
+   - Handle plan approval if required
+
+5. **Cleanup**
+   ```
+   Teammate({ operation: "requestShutdown", target_agent_id: "implementer" })
+   Teammate({ operation: "requestShutdown", target_agent_id: "tester" })
+   Teammate({ operation: "cleanup" })
+   ```
+
+See the `orchestrating-swarms` skill for detailed swarm patterns and best practices.
+
+---
+
+## Key Principles
+
+### Start Fast, Execute Faster
+
+- Get clarification once at the start, then execute
+- Don't wait for perfect understanding - ask questions and move
+- The goal is to **finish the feature**, not create perfect process
+
+### The Plan is Your Guide
+
+- Work documents should reference similar code and patterns
+- Load those references and follow them
+- Don't reinvent - match what exists
+
+### Test As You Go
+
+- Run tests after each change, not at the end
+- Fix failures immediately
+- Continuous testing prevents big surprises
+
+### Quality is Built In
+
+- Follow existing patterns
+- Write tests for new code
+- Run linting before pushing
+- Use reviewer agents for complex/risky changes only
+
+### Ship Complete Features
+
+- Mark all tasks completed before moving on
+- Don't leave features 80% done
+- A finished feature that ships beats a perfect feature that doesn't
+
+## Quality Checklist
+
+Before creating PR, verify:
+
+- [ ] All clarifying questions asked and answered
+- [ ] All TodoWrite tasks marked completed
+- [ ] Tests pass (run project's test command)
+- [ ] Linting passes (use linting-agent)
+- [ ] Code follows existing patterns
+- [ ] Figma designs match implementation (if applicable)
+- [ ] Before/after screenshots captured and uploaded (for UI changes)
+- [ ] Commit messages follow conventional format
+- [ ] PR description includes summary, testing notes, and screenshots
+- [ ] PR description includes Compound Engineered badge
+
+## When to Use Reviewer Agents
+
+**Don't use by default.** Use reviewer agents only when:
+
+- Large refactor affecting many files (10+)
+- Security-sensitive changes (authentication, permissions, data access)
+- Performance-critical code paths
+- Complex algorithms or business logic
+- User explicitly requests thorough review
+
+For most features: tests + linting + following patterns is sufficient.
+
+## Common Pitfalls to Avoid
+
+- **Analysis paralysis** - Don't overthink, read the plan and execute
+- **Skipping clarifying questions** - Ask now, not after building wrong thing
+- **Ignoring plan references** - The plan has links for a reason
+- **Testing at the end** - Test continuously or suffer later
+- **Forgetting TodoWrite** - Track progress or lose track of what's done
+- **80% done syndrome** - Finish the feature, don't move on early
+- **Over-reviewing simple changes** - Save reviewer agents for complex work

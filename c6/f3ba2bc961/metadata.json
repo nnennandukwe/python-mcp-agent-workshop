@@ -3,8 +3,11 @@
   "checkpoint_id": "c6f3ba2bc961",
   "strategy": "manual-commit",
   "branch": "feat/resolve-reviews-skill",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
+    ".claude/commands/resolve-reviews.md",
+    ".claude/docs/resolve-reviews-design.md",
+    "docs/plans/2026-02-10-feat-resolve-reviews-claude-code-skill-plan.md",
     "tests/test_subprocess_transport.py"
   ],
   "sessions": [
@@ -14,13 +17,20 @@
       "context": "/c6/f3ba2bc961/0/context.md",
       "content_hash": "/c6/f3ba2bc961/0/content_hash.txt",
       "prompt": "/c6/f3ba2bc961/0/prompt.txt"
+    },
+    {
+      "metadata": "/c6/f3ba2bc961/1/metadata.json",
+      "transcript": "/c6/f3ba2bc961/1/full.jsonl",
+      "context": "/c6/f3ba2bc961/1/context.md",
+      "content_hash": "/c6/f3ba2bc961/1/content_hash.txt",
+      "prompt": "/c6/f3ba2bc961/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 21,
-    "cache_creation_tokens": 42345,
-    "cache_read_tokens": 756061,
-    "output_tokens": 2225,
-    "api_call_count": 16
+    "input_tokens": 82,
+    "cache_creation_tokens": 283847,
+    "cache_read_tokens": 5636252,
+    "output_tokens": 12866,
+    "api_call_count": 69
   }
 }
