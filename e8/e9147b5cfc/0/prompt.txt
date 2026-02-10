@@ -1,0 +1,5 @@
+add .entire/ to .gitignore
+
+---
+
+commit this
