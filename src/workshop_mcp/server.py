@@ -413,9 +413,10 @@ class WorkshopMCPServer:
         try:
             self.path_validator.validate_multiple(root_paths)
         except PathValidationError as e:
+            logger.warning("Path validation error in keyword_search: %s", e)
             return self._error_response(
                 request_id,
-                JsonRpcError(-32602, str(e)),
+                JsonRpcError(-32602, "Invalid file path"),
             )
 
         try:
