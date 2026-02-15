@@ -183,6 +183,63 @@ line5 keyword"""
         assert result["files"][file_path]["lines"] == [1]
 
 
+class TestLineNumbersDisabled:
+    """Test behavior when line number collection is disabled."""
+
+    @pytest.mark.asyncio
+    async def test_no_lines_key_when_disabled(self, search_tool, tmp_path):
+        """Test that 'lines' key is omitted when include_line_numbers=False."""
+        (tmp_path / "test.py").write_text("keyword here\nand keyword again")
+
+        result = await search_tool.execute("keyword", [str(tmp_path)], include_line_numbers=False)
+        file_path = str(tmp_path / "test.py")
+
+        assert file_path in result["files"]
+        assert "lines" not in result["files"][file_path]
+        assert result["files"][file_path]["occurrences"] == 2
+
+    @pytest.mark.asyncio
+    async def test_occurrences_correct_when_lines_disabled(self, search_tool, tmp_path):
+        """Test occurrence counts remain correct with line numbers disabled."""
+        content = "word word word\nother line\nword"
+        (tmp_path / "test.py").write_text(content)
+
+        result_with = await search_tool.execute("word", [str(tmp_path)], include_line_numbers=True)
+        result_without = await search_tool.execute(
+            "word", [str(tmp_path)], include_line_numbers=False
+        )
+
+        file_path = str(tmp_path / "test.py")
+        assert result_with["files"][file_path]["occurrences"] == 4
+        assert result_without["files"][file_path]["occurrences"] == 4
+
+    @pytest.mark.asyncio
+    async def test_lines_disabled_case_insensitive(self, search_tool, tmp_path):
+        """Test disabled line numbers with case-insensitive search."""
+        (tmp_path / "test.py").write_text("HELLO\nhello")
+
+        result = await search_tool.execute(
+            "hello", [str(tmp_path)], case_insensitive=True, include_line_numbers=False
+        )
+        file_path = str(tmp_path / "test.py")
+
+        assert "lines" not in result["files"][file_path]
+        assert result["files"][file_path]["occurrences"] == 2
+
+    @pytest.mark.asyncio
+    async def test_lines_disabled_regex_mode(self, search_tool, tmp_path):
+        """Test disabled line numbers with regex search."""
+        (tmp_path / "test.py").write_text("test123\nfoo\ntest456")
+
+        result = await search_tool.execute(
+            r"test\d+", [str(tmp_path)], use_regex=True, include_line_numbers=False
+        )
+        file_path = str(tmp_path / "test.py")
+
+        assert "lines" not in result["files"][file_path]
+        assert result["files"][file_path]["occurrences"] == 2
+
+
 class TestKeywordSearchErrors:
     """Test error handling."""
 

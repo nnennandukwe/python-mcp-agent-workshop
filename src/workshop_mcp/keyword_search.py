@@ -74,6 +74,7 @@ class KeywordSearchTool:
         use_regex: bool = False,
         include_patterns: list[str] | None = None,
         exclude_patterns: list[str] | None = None,
+        include_line_numbers: bool = True,
     ) -> dict[str, Any]:
         """
         Execute keyword search across multiple root paths.
@@ -85,6 +86,8 @@ class KeywordSearchTool:
             use_regex: Whether keyword is treated as a regular expression
             include_patterns: Optional list of glob patterns to include files
             exclude_patterns: Optional list of glob patterns to exclude files
+            include_line_numbers: Whether to collect line numbers for matches (default True).
+                Set to False to skip line-number tracking for better performance.
 
         Returns:
             Dictionary containing search results with file paths, occurrence counts,
@@ -161,6 +164,7 @@ class KeywordSearchTool:
                     exclude_patterns,
                     case_insensitive,
                     skipped_files,
+                    include_line_numbers,
                 )
             )
 
@@ -214,6 +218,7 @@ class KeywordSearchTool:
         exclude_patterns: list[str] | None,
         case_insensitive: bool,
         skipped_files: list[str],
+        include_line_numbers: bool = True,
     ) -> None:
         """
         Recursively search a directory for keyword occurrences.
@@ -258,6 +263,7 @@ class KeywordSearchTool:
                             result,
                             case_insensitive,
                             skipped_files,
+                            include_line_numbers,
                         )
                     )
 
@@ -282,6 +288,7 @@ class KeywordSearchTool:
         result: dict[str, Any],
         case_insensitive: bool,
         skipped_files: list[str],
+        include_line_numbers: bool = True,
     ) -> None:
         """
         Search a single file for keyword occurrences.
@@ -302,7 +309,7 @@ class KeywordSearchTool:
 
                 try:
                     occurrences, line_numbers = self._count_occurrences(
-                        content, keyword, pattern, case_insensitive
+                        content, keyword, pattern, case_insensitive, include_line_numbers
                     )
                 except TimeoutError:
                     # Regex operation timed out - skip this file and continue
@@ -318,12 +325,14 @@ class KeywordSearchTool:
                     result["summary"]["files_with_errors"] += 1
                     return
 
-                result["files"][file_path_str] = {
+                file_entry: dict[str, Any] = {
                     "occurrences": occurrences,
-                    "lines": line_numbers,
                     "size_bytes": size_bytes,
                     "extension": file_path.suffix.lower(),
                 }
+                if include_line_numbers:
+                    file_entry["lines"] = line_numbers
+                result["files"][file_path_str] = file_entry
 
                 result["summary"]["total_files_searched"] += 1
 
@@ -373,57 +382,58 @@ class KeywordSearchTool:
         keyword: str,
         pattern: regex.Pattern[str] | None,
         case_insensitive: bool,
+        include_line_numbers: bool = True,
     ) -> tuple[int, list[int]]:
         """
-        Count occurrences of keyword in content and collect line numbers.
+        Count occurrences of keyword in content and optionally collect line numbers.
+
+        Iterates over matches in a streaming fashion to avoid materializing a full
+        list of match objects.  Timeout is only applied to user-supplied regex
+        patterns (not escaped literal searches) because literal patterns cannot
+        trigger ReDoS.
 
         Args:
             content: File content to search
             keyword: The keyword to search for
             pattern: Compiled regex pattern when use_regex is enabled
             case_insensitive: Whether to perform a case-insensitive search
+            include_line_numbers: Whether to collect line numbers for matches
 
         Returns:
             Tuple of (count, line_numbers) where line_numbers is a list of 1-indexed
-            line numbers where matches were found
+            line numbers where matches were found (empty list when disabled)
 
         Raises:
             TimeoutError: If regex operation times out (1 second per file)
         """
         line_numbers: list[int] = []
+        count = 0
 
         if pattern is not None:
-            # Use regex library with timeout for ReDoS protection
-            matches = list(pattern.finditer(content, timeout=self.REGEX_TIMEOUT))
+            # User-supplied regex — apply timeout for ReDoS protection
+            matches_iter = pattern.finditer(content, timeout=self.REGEX_TIMEOUT)
         elif case_insensitive:
-            # Use regex.finditer with IGNORECASE and timeout instead of content.lower()
-            # to avoid creating a full lowercase copy of large files
-            matches = list(
-                regex.finditer(
-                    regex.escape(keyword),
-                    content,
-                    regex.IGNORECASE,
-                    timeout=self.REGEX_TIMEOUT,
-                )
+            # Literal case-insensitive — no timeout needed (escaped pattern)
+            matches_iter = regex.finditer(
+                regex.escape(keyword),
+                content,
+                regex.IGNORECASE,
             )
         else:
-            # For simple case-sensitive search, use regex.finditer for consistency
-            # so we can get match positions for line number calculation
-            matches = list(
-                regex.finditer(
-                    regex.escape(keyword),
-                    content,
-                    timeout=self.REGEX_TIMEOUT,
-                )
+            # Literal case-sensitive — no timeout needed (escaped pattern)
+            matches_iter = regex.finditer(
+                regex.escape(keyword),
+                content,
             )
 
-        # Calculate line numbers from match positions
-        for match in matches:
-            # Count newlines before the match position, add 1 for 1-indexed line numbers
-            line_num = content[: match.start()].count("\n") + 1
-            line_numbers.append(line_num)
+        # Stream over matches: count and optionally collect line numbers
+        for match in matches_iter:
+            count += 1
+            if include_line_numbers:
+                line_num = content[: match.start()].count("\n") + 1
+                line_numbers.append(line_num)
 
-        return len(matches), line_numbers
+        return count, line_numbers
 
     def _should_exclude_dir(
         self,
