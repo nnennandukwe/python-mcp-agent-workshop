@@ -458,10 +458,10 @@ class WorkshopMCPServer:
                 JsonRpcError(-32602, "Missing required argument"),
             )
         except SecurityValidationError as exc:
-            logger.warning("Security validation error: %s", exc)
+            logger.warning("Security validation error in pythonic_check: %s", exc)
             return self._error_response(
                 request_id,
-                JsonRpcError(-32602, str(exc)),
+                JsonRpcError(-32602, "Security validation failed"),
             )
         except Exception:
             logger.exception("Error executing keyword_search")
@@ -510,9 +510,10 @@ class WorkshopMCPServer:
             try:
                 self.path_validator.validate_exists(file_path, must_be_file=True)
             except PathValidationError as e:
+                logger.warning("Path validation error in pythonic_check: %s", e)
                 return self._error_response(
                     request_id,
-                    JsonRpcError(-32602, str(e)),
+                    JsonRpcError(-32602, "Invalid file path"),
                 )
 
         try:
@@ -585,10 +586,10 @@ class WorkshopMCPServer:
                 JsonRpcError(-32602, "Missing required argument"),
             )
         except SecurityValidationError as exc:
-            logger.warning("Security validation error: %s", exc)
+            logger.warning("Security validation error in pythonic_check: %s", exc)
             return self._error_response(
                 request_id,
-                JsonRpcError(-32602, str(exc)),
+                JsonRpcError(-32602, "Security validation failed"),
             )
         except Exception:
             logger.exception("Error executing performance_check")
@@ -645,9 +646,10 @@ class WorkshopMCPServer:
                     self.path_validator.validate_exists(file_path, must_be_file=True)
                 )
             except PathValidationError as e:
+                logger.warning("Path validation error in pythonic_check: %s", e)
                 return self._error_response(
                     request_id,
-                    JsonRpcError(-32602, str(e)),
+                    JsonRpcError(-32602, "Invalid file path"),
                 )
 
         # Read file at the trust boundary using the validated path,
@@ -723,10 +725,10 @@ class WorkshopMCPServer:
                 JsonRpcError(-32602, "Missing required argument"),
             )
         except SecurityValidationError as exc:
-            logger.warning("Security validation error: %s", exc)
+            logger.warning("Security validation error in pythonic_check: %s", exc)
             return self._error_response(
                 request_id,
-                JsonRpcError(-32602, str(exc)),
+                JsonRpcError(-32602, "Security validation failed"),
             )
         except Exception:
             logger.exception("Error executing pythonic_check")
