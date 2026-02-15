@@ -283,7 +283,7 @@ class WorkshopMCPServer:
                             },
                             "source_code": {
                                 "type": "string",
-                                "description": "Optional Python source code string to analyze instead of file",
+                                "description": "Python source code string to analyze",
                             },
                         },
                         "oneOf": [
@@ -309,7 +309,7 @@ class WorkshopMCPServer:
                             },
                             "source_code": {
                                 "type": "string",
-                                "description": "Optional Python source code string to analyze instead of file",
+                                "description": "Python source code string to analyze",
                             },
                         },
                         "oneOf": [
