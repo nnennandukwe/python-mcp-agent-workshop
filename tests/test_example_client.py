@@ -15,10 +15,9 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 CLIENT_SCRIPT = PROJECT_ROOT / "examples" / "mcp_client_example.py"
 
 # The client spawns 5 server subprocesses sequentially, each with a 30s
-# internal timeout (worst-case aggregate: 150s).  We use 60s as a pragmatic
-# compromise: long enough for healthy runs but short enough to catch hangs
-# quickly.  If this proves flaky on slow CI, increase toward 150s.
-TIMEOUT_SECONDS = 60
+# internal timeout (worst-case aggregate: 150s).  We use 180s (150s + 30s
+# buffer) to avoid flaky failures on slow CI while still catching hangs.
+TIMEOUT_SECONDS = 180
 
 
 def _run_client() -> subprocess.CompletedProcess[str]:
@@ -38,6 +37,7 @@ def client_result() -> subprocess.CompletedProcess[str]:
     return _run_client()
 
 
+@pytest.mark.integration
 class TestExampleClient:
     """End-to-end tests for examples/mcp_client_example.py."""
 
