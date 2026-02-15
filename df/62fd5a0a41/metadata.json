@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "df62fd5a0a41",
+  "strategy": "manual-commit",
+  "branch": "feat/keyword-search-line-numbers-30",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "src/workshop_mcp/keyword_search.py",
+    "tests/test_keyword_search.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/df/62fd5a0a41/0/metadata.json",
+      "transcript": "/df/62fd5a0a41/0/full.jsonl",
+      "context": "/df/62fd5a0a41/0/context.md",
+      "content_hash": "/df/62fd5a0a41/0/content_hash.txt",
+      "prompt": "/df/62fd5a0a41/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 36,
+    "cache_creation_tokens": 74614,
+    "cache_read_tokens": 1807410,
+    "output_tokens": 8808,
+    "api_call_count": 32
+  }
+}
