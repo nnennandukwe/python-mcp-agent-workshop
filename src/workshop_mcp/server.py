@@ -656,7 +656,14 @@ class WorkshopMCPServer:
         # then pass content downstream to avoid a second filesystem access (TOCTOU).
         if validated_path:
             logger.info("Executing pythonic check on file: %s", validated_path)
-            source_code = Path(validated_path).read_text(encoding="utf-8")
+            try:
+                source_code = Path(validated_path).read_text(encoding="utf-8")
+            except UnicodeDecodeError:
+                logger.warning("UnicodeDecodeError in pythonic_check")
+                return self._error_response(
+                    request_id,
+                    JsonRpcError(-32602, "File is not valid UTF-8"),
+                )
         else:
             logger.info("Executing pythonic check on source code")
 
