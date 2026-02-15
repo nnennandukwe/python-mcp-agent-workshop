@@ -506,23 +506,41 @@ class WorkshopMCPServer:
             )
 
         # Validate file_path before tool execution
+        validated_path: str | None = None
         if file_path:
             try:
-                self.path_validator.validate_exists(file_path, must_be_file=True)
+                validated_path = str(
+                    self.path_validator.validate_exists(file_path, must_be_file=True)
+                )
             except PathValidationError as e:
-                logger.warning("Path validation error in pythonic_check: %s", e)
+                logger.warning("Path validation error in performance_check: %s", e)
                 return self._error_response(
                     request_id,
                     JsonRpcError(-32602, "Invalid file path"),
                 )
 
+        # Read file at the trust boundary using the validated path
+        if validated_path:
+            logger.info("Executing performance check on file: %s", validated_path)
+            try:
+                source_code = Path(validated_path).read_text(encoding="utf-8")
+            except UnicodeDecodeError:
+                logger.warning("UnicodeDecodeError in performance_check")
+                return self._error_response(
+                    request_id,
+                    JsonRpcError(-32602, "File is not valid UTF-8"),
+                )
+            except OSError as e:
+                logger.warning("OSError reading file in performance_check: %s", type(e).__name__)
+                return self._error_response(
+                    request_id,
+                    JsonRpcError(-32602, "Unable to read file"),
+                )
+        else:
+            logger.info("Executing performance check on source code")
+
         try:
-            if file_path:
-                logger.info("Executing performance check on file: %s", file_path)
-                checker = PerformanceChecker(file_path=file_path)
-            else:
-                logger.info("Executing performance check on source code")
-                checker = PerformanceChecker(source_code=source_code)
+            checker = PerformanceChecker(source_code=source_code)
 
             # Run all performance checks
             issues = checker.check_all()
