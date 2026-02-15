@@ -8,7 +8,7 @@ from workshop_mcp.pythonic_check import IssueCategory, PythonicChecker, Severity
 class TestRangeLenPattern:
     """Tests for range(len()) detection."""
 
-    def test_detects_range_len(self):
+    def test_detects_range_len(self) -> None:
         """Should detect for i in range(len(items)) pattern."""
         code = """
 items = [1, 2, 3]
@@ -22,7 +22,7 @@ for i in range(len(items)):
         assert issues[0].category == IssueCategory.NON_IDIOMATIC_LOOP
         assert "enumerate" in issues[0].message.lower()
 
-    def test_ignores_plain_range(self):
+    def test_ignores_plain_range(self) -> None:
         """Should not flag plain range() usage."""
         code = """
 for i in range(10):
@@ -39,7 +39,7 @@ for i in range(10):
 class TestDictKeysIteration:
     """Tests for dict.keys() iteration detection."""
 
-    def test_detects_dict_keys(self):
+    def test_detects_dict_keys(self) -> None:
         """Should detect for key in d.keys() pattern."""
         code = """
 d = {"a": 1}
@@ -53,7 +53,7 @@ for key in d.keys():
         assert len(loop_issues) == 1
         assert "keys" in loop_issues[0].message.lower()
 
-    def test_ignores_direct_dict_iteration(self):
+    def test_ignores_direct_dict_iteration(self) -> None:
         """Should not flag direct dict iteration."""
         code = """
 d = {"a": 1}
@@ -70,7 +70,7 @@ for key in d:
 class TestNoneComparison:
     """Tests for None comparison detection."""
 
-    def test_detects_equality_none(self):
+    def test_detects_equality_none(self) -> None:
         """Should detect x == None pattern."""
         code = """
 x = None
@@ -84,7 +84,7 @@ if x == None:
         assert len(none_issues) == 1
         assert "is None" in none_issues[0].suggestion
 
-    def test_detects_inequality_none(self):
+    def test_detects_inequality_none(self) -> None:
         """Should detect x != None pattern."""
         code = """
 x = None
@@ -98,7 +98,7 @@ if x != None:
         assert len(none_issues) == 1
         assert "is not None" in none_issues[0].suggestion
 
-    def test_ignores_is_none(self):
+    def test_ignores_is_none(self) -> None:
         """Should not flag x is None."""
         code = """
 x = None
@@ -115,7 +115,7 @@ if x is None:
 class TestBoolComparison:
     """Tests for boolean comparison detection."""
 
-    def test_detects_equality_true(self):
+    def test_detects_equality_true(self) -> None:
         """Should detect x == True pattern."""
         code = """
 x = True
@@ -128,7 +128,7 @@ if x == True:
         bool_issues = [i for i in issues if "boolean" in i.message.lower()]
         assert len(bool_issues) == 1
 
-    def test_detects_equality_false(self):
+    def test_detects_equality_false(self) -> None:
         """Should detect x == False pattern."""
         code = """
 x = False
@@ -141,7 +141,7 @@ if x == False:
         bool_issues = [i for i in issues if "boolean" in i.message.lower()]
         assert len(bool_issues) == 1
 
-    def test_ignores_truthiness_test(self):
+    def test_ignores_truthiness_test(self) -> None:
         """Should not flag if x: or if not x:."""
         code = """
 x = True
@@ -160,7 +160,7 @@ if not x:
 class TestTypeComparison:
     """Tests for type() comparison detection."""
 
-    def test_detects_type_equality(self):
+    def test_detects_type_equality(self) -> None:
         """Should detect type(x) == SomeClass pattern."""
         code = """
 class MyClass:
@@ -176,7 +176,7 @@ if type(x) == MyClass:
         type_issues = [i for i in issues if "isinstance" in i.message.lower()]
         assert len(type_issues) == 1
 
-    def test_ignores_isinstance(self):
+    def test_ignores_isinstance(self) -> None:
         """Should not flag isinstance() usage."""
         code = """
 class MyClass:
@@ -196,7 +196,7 @@ if isinstance(x, MyClass):
 class TestLenComparison:
     """Tests for len() comparison detection."""
 
-    def test_detects_len_zero(self):
+    def test_detects_len_zero(self) -> None:
         """Should detect len(x) == 0 pattern."""
         code = """
 items = []
@@ -210,7 +210,7 @@ if len(items) == 0:
         assert len(len_issues) == 1
         assert "not items" in len_issues[0].suggestion
 
-    def test_detects_len_greater_zero(self):
+    def test_detects_len_greater_zero(self) -> None:
         """Should detect len(x) > 0 pattern."""
         code = """
 items = []
@@ -224,7 +224,7 @@ if len(items) > 0:
         assert len(len_issues) == 1
         assert "if items" in len_issues[0].suggestion
 
-    def test_ignores_truthiness(self):
+    def test_ignores_truthiness(self) -> None:
         """Should not flag if items: or if not items:."""
         code = """
 items = []
@@ -243,7 +243,7 @@ if not items:
 class TestMutableDefaults:
     """Tests for mutable default argument detection."""
 
-    def test_detects_list_default(self):
+    def test_detects_list_default(self) -> None:
         """Should detect def foo(items=[]) pattern."""
         code = """
 def foo(items=[]):
@@ -256,7 +256,7 @@ def foo(items=[]):
         assert len(mutable_issues) == 1
         assert mutable_issues[0].severity == Severity.ERROR
 
-    def test_detects_dict_default(self):
+    def test_detects_dict_default(self) -> None:
         """Should detect def foo(d={}) pattern."""
         code = """
 def foo(d={}):
@@ -268,7 +268,7 @@ def foo(d={}):
         mutable_issues = [i for i in issues if i.category == IssueCategory.MUTABLE_DEFAULT_ARGUMENT]
         assert len(mutable_issues) == 1
 
-    def test_detects_set_default(self):
+    def test_detects_set_default(self) -> None:
         """Should detect def foo(s=set()) pattern - but set() is a call not literal."""
         # Note: set literals like {1, 2} would be detected
         code = """
@@ -281,7 +281,7 @@ def foo(s={1, 2}):
         mutable_issues = [i for i in issues if i.category == IssueCategory.MUTABLE_DEFAULT_ARGUMENT]
         assert len(mutable_issues) == 1
 
-    def test_ignores_none_default(self):
+    def test_ignores_none_default(self) -> None:
         """Should not flag def foo(items=None) pattern."""
         code = """
 def foo(items=None):
@@ -298,7 +298,7 @@ def foo(items=None):
 class TestCollectionBuilding:
     """Tests for collection building pattern detection."""
 
-    def test_detects_append_in_loop(self):
+    def test_detects_append_in_loop(self) -> None:
         """Should detect list.append() in loop."""
         code = """
 result = []
@@ -311,7 +311,7 @@ for x in range(10):
         append_issues = [i for i in issues if "comprehension" in i.message.lower()]
         assert len(append_issues) == 1
 
-    def test_detects_dict_setitem_in_loop(self):
+    def test_detects_dict_setitem_in_loop(self) -> None:
         """Should detect dict[key] = value in loop."""
         code = """
 result = {}
@@ -328,7 +328,7 @@ for x in range(10):
 class TestRedundantCode:
     """Tests for redundant code detection."""
 
-    def test_detects_redundant_bool_return_true_false(self):
+    def test_detects_redundant_bool_return_true_false(self) -> None:
         """Should detect if x: return True else: return False."""
         code = """
 def is_positive(x):
@@ -344,7 +344,7 @@ def is_positive(x):
         assert len(redundant_issues) == 1
         assert "return condition" in redundant_issues[0].suggestion
 
-    def test_detects_redundant_bool_return_false_true(self):
+    def test_detects_redundant_bool_return_false_true(self) -> None:
         """Should detect if x: return False else: return True."""
         code = """
 def is_negative(x):
@@ -364,7 +364,7 @@ def is_negative(x):
 class TestExceptionPatterns:
     """Tests for exception pattern detection."""
 
-    def test_detects_bare_except(self):
+    def test_detects_bare_except(self) -> None:
         """Should detect bare except: clause."""
         code = """
 try:
@@ -379,7 +379,7 @@ except:
         assert len(except_issues) == 1
         assert "bare" in except_issues[0].message.lower()
 
-    def test_ignores_specific_exception(self):
+    def test_ignores_specific_exception(self) -> None:
         """Should not flag except Exception:."""
         code = """
 try:
@@ -397,7 +397,7 @@ except Exception:
 class TestSummary:
     """Tests for the summary functionality."""
 
-    def test_summary_counts(self):
+    def test_summary_counts(self) -> None:
         """Should return correct issue counts in summary."""
         code = """
 def foo(items=[]):
@@ -416,7 +416,7 @@ def foo(items=[]):
 class TestEdgeCases:
     """Tests for edge cases."""
 
-    def test_empty_file(self):
+    def test_empty_file(self) -> None:
         """Should handle empty file."""
         code = ""
         checker = PythonicChecker(source_code=code)
@@ -424,14 +424,14 @@ class TestEdgeCases:
 
         assert issues == []
 
-    def test_syntax_error(self):
+    def test_syntax_error(self) -> None:
         """Should raise SyntaxError for invalid code."""
         code = "def foo(:"
 
         with pytest.raises(SyntaxError):
             PythonicChecker(source_code=code)
 
-    def test_no_issues_in_clean_code(self):
+    def test_no_issues_in_clean_code(self) -> None:
         """Should find no issues in Pythonic code."""
         code = """
 def process_items(items=None):
