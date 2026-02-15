@@ -458,7 +458,7 @@ class WorkshopMCPServer:
 
         # Validate paths before tool execution
         try:
-            self.path_validator.validate_multiple(root_paths)
+            validated_paths = self.path_validator.validate_multiple(root_paths)
         except PathValidationError as e:
             logger.warning("Path validation error in keyword_search: %s", e)
             return self._error_response(
@@ -466,16 +466,19 @@ class WorkshopMCPServer:
                 JsonRpcError(-32602, "Invalid file path"),
             )
 
+        # Convert validated Path objects to strings for tool execution
+        validated_path_strings = [str(p) for p in validated_paths]
+
         try:
             logger.info(
                 "Executing keyword search for '%s' in %d paths",
                 keyword,
-                len(root_paths),
+                len(validated_path_strings),
             )
             result = self.loop.run_until_complete(
                 self.keyword_search_tool.execute(
                     keyword,
-                    root_paths,
+                    validated_path_strings,
                     case_insensitive=case_insensitive,
                     use_regex=use_regex,
                     include_patterns=include_patterns,
@@ -621,7 +624,7 @@ class WorkshopMCPServer:
                         "type": "json",
                         "json": {
                             "success": True,
-                            "file_analyzed": file_path or "source_code",
+                            "file_analyzed": validated_path or "source_code",
                             "summary": summary,
                             "issues": issues_data,
                         },
