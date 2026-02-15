@@ -89,13 +89,15 @@ DICT_SETITEM_IN_LOOP_SUGGESTION = "{k: v for k, v in items}"
 
 # Mutable default argument patterns
 MUTABLE_DEFAULT_LIST_MSG = "Avoid mutable default argument (list)"
-MUTABLE_DEFAULT_LIST_SUGGESTION = "def foo(items=None): items = items or []"
+MUTABLE_DEFAULT_LIST_SUGGESTION = (
+    "def foo(items=None):\\n    if items is None:\\n        items = []"
+)
 
 MUTABLE_DEFAULT_DICT_MSG = "Avoid mutable default argument (dict)"
-MUTABLE_DEFAULT_DICT_SUGGESTION = "def foo(d=None): d = d or {}"
+MUTABLE_DEFAULT_DICT_SUGGESTION = "def foo(d=None):\\n    if d is None:\\n        d = {}"
 
 MUTABLE_DEFAULT_SET_MSG = "Avoid mutable default argument (set)"
-MUTABLE_DEFAULT_SET_SUGGESTION = "def foo(s=None): s = s or set()"
+MUTABLE_DEFAULT_SET_SUGGESTION = "def foo(s=None):\\n    if s is None:\\n        s = set()"
 
 # Redundant code patterns
 REDUNDANT_BOOL_RETURN_MSG = "Simplify boolean return"
