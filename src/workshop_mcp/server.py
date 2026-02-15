@@ -664,6 +664,12 @@ class WorkshopMCPServer:
                     request_id,
                     JsonRpcError(-32602, "File is not valid UTF-8"),
                 )
+            except OSError as e:
+                logger.warning("OSError reading file in pythonic_check: %s", type(e).__name__)
+                return self._error_response(
+                    request_id,
+                    JsonRpcError(-32602, "Unable to read file"),
+                )
         else:
             logger.info("Executing pythonic check on source code")
 
