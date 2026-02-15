@@ -240,6 +240,79 @@ class TestLineNumbersDisabled:
         assert result["files"][file_path]["occurrences"] == 2
 
 
+class TestResponseSizeCaps:
+    """Test response size caps for line numbers and file count."""
+
+    @pytest.mark.asyncio
+    async def test_lines_truncated_per_file(self, search_tool, tmp_path):
+        """Test that line numbers are capped at max_lines_per_file."""
+        # Create a file with 10 matches
+        content = "\n".join(f"line{i} keyword" for i in range(10))
+        (tmp_path / "test.py").write_text(content)
+
+        result = await search_tool.execute("keyword", [str(tmp_path)], max_lines_per_file=3)
+        file_path = str(tmp_path / "test.py")
+
+        assert result["files"][file_path]["occurrences"] == 10
+        assert len(result["files"][file_path]["lines"]) == 3
+        assert result["files"][file_path]["lines_truncated"] is True
+
+    @pytest.mark.asyncio
+    async def test_lines_not_truncated_under_cap(self, search_tool, tmp_path):
+        """Test no truncation flag when under the cap."""
+        content = "keyword\nkeyword"
+        (tmp_path / "test.py").write_text(content)
+
+        result = await search_tool.execute("keyword", [str(tmp_path)], max_lines_per_file=10)
+        file_path = str(tmp_path / "test.py")
+
+        assert result["files"][file_path]["occurrences"] == 2
+        assert len(result["files"][file_path]["lines"]) == 2
+        assert "lines_truncated" not in result["files"][file_path]
+
+    @pytest.mark.asyncio
+    async def test_default_cap_applied(self, search_tool, tmp_path):
+        """Test that default cap is applied when max_lines_per_file=0."""
+        # Create a file with more matches than the default cap (200)
+        content = "\n".join(f"line{i} keyword" for i in range(250))
+        (tmp_path / "test.py").write_text(content)
+
+        result = await search_tool.execute("keyword", [str(tmp_path)])
+        file_path = str(tmp_path / "test.py")
+
+        assert result["files"][file_path]["occurrences"] == 250
+        assert len(result["files"][file_path]["lines"]) == 200
+        assert result["files"][file_path]["lines_truncated"] is True
+
+    @pytest.mark.asyncio
+    async def test_max_files_truncation(self, search_tool, tmp_path):
+        """Test that file results are capped at max_files, keeping top by occurrences."""
+        # Create 5 files with varying match counts
+        for i in range(5):
+            content = "keyword\n" * (i + 1)
+            (tmp_path / f"file{i}.py").write_text(content)
+
+        result = await search_tool.execute("keyword", [str(tmp_path)], max_files=2)
+
+        assert len(result["files"]) == 2
+        assert result["summary"]["files_truncated"] is True
+        assert result["summary"]["files_returned"] == 2
+        # Summary should still reflect full search
+        assert result["summary"]["total_files_with_matches"] == 5
+        # Kept files should be the ones with most occurrences
+        kept_counts = [f["occurrences"] for f in result["files"].values()]
+        assert min(kept_counts) >= 4  # files 3 and 4 have 4 and 5 occurrences
+
+    @pytest.mark.asyncio
+    async def test_max_files_no_truncation_under_cap(self, search_tool, tmp_path):
+        """Test no truncation when file count is under the cap."""
+        (tmp_path / "test.py").write_text("keyword")
+
+        result = await search_tool.execute("keyword", [str(tmp_path)], max_files=100)
+
+        assert "files_truncated" not in result["summary"]
+
+
 class TestKeywordSearchErrors:
     """Test error handling."""
 
