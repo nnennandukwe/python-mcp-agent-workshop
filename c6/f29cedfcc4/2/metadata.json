@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "c6f29cedfcc4",
+  "session_id": "73cdef62-2301-4c7a-869d-72e1438150c4",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-15T13:43:35.000075Z",
+  "branch": "feat/pythonic-checker-42",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "src/workshop_mcp/server.py"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "109aabd5-054a-431b-9ad7-7c428afe33cf",
+  "token_usage": {
+    "input_tokens": 357,
+    "cache_creation_tokens": 213581,
+    "cache_read_tokens": 4480390,
+    "output_tokens": 10033,
+    "api_call_count": 49
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-15T13:43:34.946689Z",
+    "agent_lines": 0,
+    "human_added": 40,
+    "human_modified": 23,
+    "human_removed": 0,
+    "total_committed": 40,
+    "agent_percentage": 0
+  }
+}

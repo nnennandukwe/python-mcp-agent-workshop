@@ -3,10 +3,11 @@
   "checkpoint_id": "c6f29cedfcc4",
   "strategy": "manual-commit",
   "branch": "feat/pythonic-checker-42",
-  "checkpoints_count": 2,
+  "checkpoints_count": 3,
   "files_touched": [
     ".claude/commands/counselors.md",
-    ".claude/commands/finalize.md"
+    ".claude/commands/finalize.md",
+    "src/workshop_mcp/server.py"
   ],
   "sessions": [
     {
@@ -22,13 +23,20 @@
       "context": "/c6/f29cedfcc4/1/context.md",
       "content_hash": "/c6/f29cedfcc4/1/content_hash.txt",
       "prompt": "/c6/f29cedfcc4/1/prompt.txt"
+    },
+    {
+      "metadata": "/c6/f29cedfcc4/2/metadata.json",
+      "transcript": "/c6/f29cedfcc4/2/full.jsonl",
+      "context": "/c6/f29cedfcc4/2/context.md",
+      "content_hash": "/c6/f29cedfcc4/2/content_hash.txt",
+      "prompt": "/c6/f29cedfcc4/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 19,
-    "cache_creation_tokens": 75394,
-    "cache_read_tokens": 368721,
-    "output_tokens": 3643,
-    "api_call_count": 12
+    "input_tokens": 376,
+    "cache_creation_tokens": 288975,
+    "cache_read_tokens": 4849111,
+    "output_tokens": 13676,
+    "api_call_count": 61
   }
 }
