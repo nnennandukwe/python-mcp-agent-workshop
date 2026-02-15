@@ -700,26 +700,28 @@ class WorkshopMCPServer:
             }
             return self._success_response(request_id, result)
 
-        except ValueError as exc:
-            logger.warning("ValueError in pythonic_check: %s", exc)
+        except ValueError:
+            logger.warning("ValueError in pythonic_check (details omitted to prevent data leakage)")
             return self._error_response(
                 request_id,
                 JsonRpcError(-32602, "Invalid parameters"),
             )
-        except FileNotFoundError as exc:
-            logger.warning("FileNotFoundError in pythonic_check: %s", exc)
+        except FileNotFoundError:
+            logger.warning("FileNotFoundError in pythonic_check")
             return self._error_response(
                 request_id,
                 JsonRpcError(-32602, "Resource not found"),
             )
-        except SyntaxError as exc:
-            logger.warning("SyntaxError in pythonic_check: %s", exc)
+        except SyntaxError:
+            logger.warning(
+                "SyntaxError in pythonic_check (details omitted to prevent data leakage)"
+            )
             return self._error_response(
                 request_id,
                 JsonRpcError(-32602, "Invalid source code syntax"),
             )
-        except KeyError as exc:
-            logger.warning("KeyError in pythonic_check: %s", exc)
+        except KeyError:
+            logger.warning("KeyError in pythonic_check")
             return self._error_response(
                 request_id,
                 JsonRpcError(-32602, "Missing required argument"),
