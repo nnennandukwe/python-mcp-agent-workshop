@@ -487,12 +487,12 @@ class WorkshopMCPServer:
         source_code = arguments.get("source_code")
 
         # Validate that exactly one is provided
-        if not file_path and not source_code:
+        if file_path is None and source_code is None:
             return self._error_response(
                 request_id,
                 JsonRpcError(-32602, "Either file_path or source_code must be provided"),
             )
-        if file_path and source_code:
+        if file_path is not None and source_code is not None:
             return self._error_response(
                 request_id,
                 JsonRpcError(-32602, "Provide only one of file_path or source_code"),
@@ -613,12 +613,12 @@ class WorkshopMCPServer:
         source_code = arguments.get("source_code")
 
         # Validate that exactly one is provided
-        if not file_path and not source_code:
+        if file_path is None and source_code is None:
             return self._error_response(
                 request_id,
                 JsonRpcError(-32602, "Either file_path or source_code must be provided"),
             )
-        if file_path and source_code:
+        if file_path is not None and source_code is not None:
             return self._error_response(
                 request_id,
                 JsonRpcError(-32602, "Provide only one of file_path or source_code"),
