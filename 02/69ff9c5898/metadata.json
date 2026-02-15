@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "0269ff9c5898",
+  "strategy": "manual-commit",
+  "branch": "test/example-client-integration-39",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "examples/mcp_client_example.py",
+    "pyproject.toml",
+    "tests/test_example_client.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/02/69ff9c5898/0/metadata.json",
+      "transcript": "/02/69ff9c5898/0/full.jsonl",
+      "context": "/02/69ff9c5898/0/context.md",
+      "content_hash": "/02/69ff9c5898/0/content_hash.txt",
+      "prompt": "/02/69ff9c5898/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 21,
+    "cache_creation_tokens": 113685,
+    "cache_read_tokens": 960540,
+    "output_tokens": 3942,
+    "api_call_count": 19
+  }
+}

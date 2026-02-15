@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "0269ff9c5898",
+  "session_id": "a85d08ee-3058-461c-a41d-e4914fc74769",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-15T15:00:30.998669Z",
+  "branch": "test/example-client-integration-39",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "examples/mcp_client_example.py",
+    "pyproject.toml",
+    "tests/test_example_client.py"
+  ],
+  "agent": "Claude Code",
+  "transcript_identifier_at_start": "249b8a7a-5b29-4bf7-9704-e1a04f25ae90",
+  "token_usage": {
+    "input_tokens": 21,
+    "cache_creation_tokens": 113685,
+    "cache_read_tokens": 960540,
+    "output_tokens": 3942,
+    "api_call_count": 19
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-15T15:00:30.982033Z",
+    "agent_lines": 120,
+    "human_added": 29,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 149,
+    "agent_percentage": 80.53691275167785
+  }
+}
