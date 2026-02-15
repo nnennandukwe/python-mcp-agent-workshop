@@ -35,8 +35,6 @@ from .patterns import (
     REDUNDANT_BOOL_RETURN_SUGGESTION,
     STRING_CONCAT_IN_LOOP_MSG,
     STRING_CONCAT_IN_LOOP_SUGGESTION,
-    TYPE_COMPARISON_MSG,
-    TYPE_COMPARISON_SUGGESTION,
     IssueCategory,
     PythonicIssue,
     Severity,
@@ -280,32 +278,14 @@ class PythonicChecker:
             )
 
     def _check_type_comparison(self, node: astroid.Compare) -> None:
-        """Check for type(x) == SomeClass instead of isinstance()."""
-        if len(node.ops) != 1:
-            return
+        """Check for type(x) == SomeClass instead of isinstance().
 
-        op, _ = node.ops[0]
-        if op != "==":
-            return
-
-        # Check if left side is type() call
-        if not isinstance(node.left, astroid.Call):
-            return
-
-        func = node.left.func
-        if isinstance(func, astroid.Name) and func.name == "type":
-            self._issues.append(
-                PythonicIssue(
-                    tool="pythonic",
-                    category=IssueCategory.NON_IDIOMATIC_COMPARISON,
-                    severity=Severity.WARNING,
-                    message=TYPE_COMPARISON_MSG,
-                    line=node.lineno,
-                    column=node.col_offset,
-                    suggestion=TYPE_COMPARISON_SUGGESTION,
-                    code_snippet=self._get_source_line(node.lineno),
-                )
-            )
+        NOTE: This check is disabled to avoid false positives. The check would flag
+        type(x) == y for any y, but isinstance() is only a valid replacement when y
+        is actually a class/type. Proper detection requires type inference.
+        """
+        # Disabled to prevent false positives when comparing types to non-class values
+        return
 
     def _check_len_comparison(self, node: astroid.Compare) -> None:
         """Check for len(x) == 0 or len(x) > 0 patterns."""
