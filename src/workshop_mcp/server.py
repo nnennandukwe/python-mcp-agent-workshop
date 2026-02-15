@@ -11,11 +11,13 @@ import json
 import logging
 import sys
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 from .keyword_search import KeywordSearchTool
 from .logging_context import CorrelationIdFilter, correlation_id_var, request_context
 from .performance_profiler import PerformanceChecker
+from .pythonic_check import PythonicChecker
 from .security import PathValidationError, PathValidator, SecurityValidationError
 
 # Configure logging with correlation ID support
@@ -281,7 +283,33 @@ class WorkshopMCPServer:
                             },
                             "source_code": {
                                 "type": "string",
-                                "description": "Optional Python source code string to analyze instead of file",
+                                "description": "Python source code string to analyze",
+                            },
+                        },
+                        "oneOf": [
+                            {"required": ["file_path"]},
+                            {"required": ["source_code"]},
+                        ],
+                    },
+                },
+                {
+                    "name": "pythonic_check",
+                    "description": (
+                        "Analyze Python code for non-idiomatic patterns and suggest Pythonic "
+                        "alternatives. Detects issues like range(len()), == None comparisons, "
+                        "mutable default arguments, and provides actionable suggestions."
+                    ),
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {
+                            "file_path": {
+                                "type": "string",
+                                "description": "Path to the Python file to analyze",
+                                "minLength": 1,
+                            },
+                            "source_code": {
+                                "type": "string",
+                                "description": "Python source code string to analyze",
                             },
                         },
                         "oneOf": [
@@ -308,6 +336,8 @@ class WorkshopMCPServer:
             return self._execute_keyword_search(request_id, arguments)
         elif name == "performance_check":
             return self._execute_performance_check(request_id, arguments)
+        elif name == "pythonic_check":
+            return self._execute_pythonic_check(request_id, arguments)
         else:
             return self._error_response(
                 request_id,
@@ -383,9 +413,10 @@ class WorkshopMCPServer:
         try:
             self.path_validator.validate_multiple(root_paths)
         except PathValidationError as e:
+            logger.warning("Path validation error in keyword_search: %s", e)
             return self._error_response(
                 request_id,
-                JsonRpcError(-32602, str(e)),
+                JsonRpcError(-32602, "Invalid file path"),
             )
 
         try:
@@ -428,10 +459,10 @@ class WorkshopMCPServer:
                 JsonRpcError(-32602, "Missing required argument"),
             )
         except SecurityValidationError as exc:
-            logger.warning("Security validation error: %s", exc)
+            logger.warning("Security validation error in pythonic_check: %s", exc)
             return self._error_response(
                 request_id,
-                JsonRpcError(-32602, str(exc)),
+                JsonRpcError(-32602, "Security validation failed"),
             )
         except Exception:
             logger.exception("Error executing keyword_search")
@@ -457,12 +488,12 @@ class WorkshopMCPServer:
         source_code = arguments.get("source_code")
 
         # Validate that exactly one is provided
-        if not file_path and not source_code:
+        if file_path is None and source_code is None:
             return self._error_response(
                 request_id,
                 JsonRpcError(-32602, "Either file_path or source_code must be provided"),
             )
-        if file_path and source_code:
+        if file_path is not None and source_code is not None:
             return self._error_response(
                 request_id,
                 JsonRpcError(-32602, "Provide only one of file_path or source_code"),
@@ -476,22 +507,41 @@ class WorkshopMCPServer:
             )
 
         # Validate file_path before tool execution
+        validated_path: str | None = None
         if file_path:
             try:
-                self.path_validator.validate_exists(file_path, must_be_file=True)
+                validated_path = str(
+                    self.path_validator.validate_exists(file_path, must_be_file=True)
+                )
             except PathValidationError as e:
+                logger.warning("Path validation error in performance_check: %s", e)
                 return self._error_response(
                     request_id,
-                    JsonRpcError(-32602, str(e)),
+                    JsonRpcError(-32602, "Invalid file path"),
                 )
 
+        # Read file at the trust boundary using the validated path
+        if validated_path:
+            logger.info("Executing performance check on file: %s", validated_path)
+            try:
+                source_code = Path(validated_path).read_text(encoding="utf-8")
+            except UnicodeDecodeError:
+                logger.warning("UnicodeDecodeError in performance_check")
+                return self._error_response(
+                    request_id,
+                    JsonRpcError(-32602, "File is not valid UTF-8"),
+                )
+            except OSError as e:
+                logger.warning("OSError reading file in performance_check: %s", type(e).__name__)
+                return self._error_response(
+                    request_id,
+                    JsonRpcError(-32602, "Unable to read file"),
+                )
+        else:
+            logger.info("Executing performance check on source code")
+
         try:
-            if file_path:
-                logger.info("Executing performance check on file: %s", file_path)
-                checker = PerformanceChecker(file_path=file_path)
-            else:
-                logger.info("Executing performance check on source code")
-                checker = PerformanceChecker(source_code=source_code)
+            checker = PerformanceChecker(source_code=source_code)
 
             # Run all performance checks
             issues = checker.check_all()
@@ -555,13 +605,167 @@ class WorkshopMCPServer:
                 JsonRpcError(-32602, "Missing required argument"),
             )
         except SecurityValidationError as exc:
-            logger.warning("Security validation error: %s", exc)
+            logger.warning("Security validation error in pythonic_check: %s", exc)
             return self._error_response(
                 request_id,
-                JsonRpcError(-32602, str(exc)),
+                JsonRpcError(-32602, "Security validation failed"),
             )
         except Exception:
             logger.exception("Error executing performance_check")
+            return self._error_response(
+                request_id,
+                JsonRpcError(
+                    -32603,
+                    "Internal error",
+                    {"correlation_id": correlation_id_var.get()},
+                ),
+            )
+
+    def _execute_pythonic_check(self, request_id: Any, arguments: dict[str, Any]) -> dict[str, Any]:
+        if not isinstance(arguments, dict):
+            return self._error_response(
+                request_id,
+                JsonRpcError(-32602, "Invalid params", {"expected": "object"}),
+            )
+
+        file_path = arguments.get("file_path")
+        source_code = arguments.get("source_code")
+
+        # Validate that exactly one is provided
+        if file_path is None and source_code is None:
+            return self._error_response(
+                request_id,
+                JsonRpcError(-32602, "Either file_path or source_code must be provided"),
+            )
+        if file_path is not None and source_code is not None:
+            return self._error_response(
+                request_id,
+                JsonRpcError(-32602, "Provide only one of file_path or source_code"),
+            )
+
+        # Type check file_path before path validation
+        if file_path is not None and not isinstance(file_path, str):
+            return self._error_response(
+                request_id,
+                JsonRpcError(-32602, "file_path must be a string"),
+            )
+
+        # Type check source_code before use
+        if source_code is not None and not isinstance(source_code, str):
+            return self._error_response(
+                request_id,
+                JsonRpcError(-32602, "source_code must be a string"),
+            )
+
+        # Validate file_path before tool execution
+        validated_path: str | None = None
+        if file_path:
+            try:
+                validated_path = str(
+                    self.path_validator.validate_exists(file_path, must_be_file=True)
+                )
+            except PathValidationError as e:
+                logger.warning("Path validation error in pythonic_check: %s", e)
+                return self._error_response(
+                    request_id,
+                    JsonRpcError(-32602, "Invalid file path"),
+                )
+
+        # Read file at the trust boundary using the validated path,
+        # then pass content downstream to avoid a second filesystem access (TOCTOU).
+        if validated_path:
+            logger.info("Executing pythonic check on file: %s", validated_path)
+            try:
+                source_code = Path(validated_path).read_text(encoding="utf-8")
+            except UnicodeDecodeError:
+                logger.warning("UnicodeDecodeError in pythonic_check")
+                return self._error_response(
+                    request_id,
+                    JsonRpcError(-32602, "File is not valid UTF-8"),
+                )
+            except OSError as e:
+                logger.warning("OSError reading file in pythonic_check: %s", type(e).__name__)
+                return self._error_response(
+                    request_id,
+                    JsonRpcError(-32602, "Unable to read file"),
+                )
+        else:
+            logger.info("Executing pythonic check on source code")
+
+        try:
+            checker = PythonicChecker(source_code=source_code)
+
+            # Run all pythonic checks
+            issues = checker.check_all()
+
+            # Get summary
+            summary = checker.get_summary()
+
+            # Format issues for output
+            issues_data = [
+                {
+                    "tool": issue.tool,
+                    "category": issue.category.value,
+                    "severity": issue.severity.value,
+                    "message": issue.message,
+                    "line": issue.line,
+                    "column": issue.column,
+                    "suggestion": issue.suggestion,
+                    "code_snippet": issue.code_snippet,
+                }
+                for issue in issues
+            ]
+
+            # Return structured result
+            result = {
+                "content": [
+                    {
+                        "type": "json",
+                        "json": {
+                            "success": True,
+                            "file_analyzed": file_path or "source_code",
+                            "summary": summary,
+                            "issues": issues_data,
+                        },
+                    }
+                ],
+            }
+            return self._success_response(request_id, result)
+
+        except ValueError:
+            logger.warning("ValueError in pythonic_check (details omitted to prevent data leakage)")
+            return self._error_response(
+                request_id,
+                JsonRpcError(-32602, "Invalid parameters"),
+            )
+        except FileNotFoundError:
+            logger.warning("FileNotFoundError in pythonic_check")
+            return self._error_response(
+                request_id,
+                JsonRpcError(-32602, "Resource not found"),
+            )
+        except SyntaxError:
+            logger.warning(
+                "SyntaxError in pythonic_check (details omitted to prevent data leakage)"
+            )
+            return self._error_response(
+                request_id,
+                JsonRpcError(-32602, "Invalid source code syntax"),
+            )
+        except KeyError:
+            logger.warning("KeyError in pythonic_check")
+            return self._error_response(
+                request_id,
+                JsonRpcError(-32602, "Missing required argument"),
+            )
+        except SecurityValidationError as exc:
+            logger.warning("Security validation error in pythonic_check: %s", exc)
+            return self._error_response(
+                request_id,
+                JsonRpcError(-32602, "Security validation failed"),
+            )
+        except Exception:
+            logger.exception("Error executing pythonic_check")
             return self._error_response(
                 request_id,
                 JsonRpcError(
