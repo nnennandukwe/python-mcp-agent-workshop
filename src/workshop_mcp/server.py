@@ -262,6 +262,32 @@ class WorkshopMCPServer:
                                 "description": ("Optional glob patterns to exclude matching files"),
                                 "items": {"type": "string"},
                             },
+                            "include_line_numbers": {
+                                "type": "boolean",
+                                "description": (
+                                    "Include line numbers for each match. "
+                                    "Set to false to reduce response size."
+                                ),
+                                "default": True,
+                            },
+                            "max_lines_per_file": {
+                                "type": "integer",
+                                "description": (
+                                    "Maximum line number entries per file (0 = default 200). "
+                                    "Occurrence counts remain accurate when truncated."
+                                ),
+                                "default": 0,
+                                "minimum": 0,
+                            },
+                            "max_files": {
+                                "type": "integer",
+                                "description": (
+                                    "Maximum file entries in response (0 = default 1000). "
+                                    "Files are ranked by occurrence count."
+                                ),
+                                "default": 0,
+                                "minimum": 0,
+                            },
                         },
                         "required": ["keyword", "root_paths"],
                     },
@@ -378,6 +404,9 @@ class WorkshopMCPServer:
         use_regex = arguments.get("use_regex", False)
         include_patterns = arguments.get("include_patterns")
         exclude_patterns = arguments.get("exclude_patterns")
+        include_line_numbers = arguments.get("include_line_numbers", True)
+        max_lines_per_file = arguments.get("max_lines_per_file", 0)
+        max_files = arguments.get("max_files", 0)
 
         if not isinstance(case_insensitive, bool):
             return self._error_response(
@@ -409,6 +438,24 @@ class WorkshopMCPServer:
                 JsonRpcError(-32602, "exclude_patterns must be a list of strings"),
             )
 
+        if not isinstance(include_line_numbers, bool):
+            return self._error_response(
+                request_id,
+                JsonRpcError(-32602, "include_line_numbers must be a boolean"),
+            )
+
+        if not isinstance(max_lines_per_file, int) or max_lines_per_file < 0:
+            return self._error_response(
+                request_id,
+                JsonRpcError(-32602, "max_lines_per_file must be a non-negative integer"),
+            )
+
+        if not isinstance(max_files, int) or max_files < 0:
+            return self._error_response(
+                request_id,
+                JsonRpcError(-32602, "max_files must be a non-negative integer"),
+            )
+
         # Validate paths before tool execution
         try:
             self.path_validator.validate_multiple(root_paths)
@@ -433,6 +480,9 @@ class WorkshopMCPServer:
                     use_regex=use_regex,
                     include_patterns=include_patterns,
                     exclude_patterns=exclude_patterns,
+                    include_line_numbers=include_line_numbers,
+                    max_lines_per_file=max_lines_per_file,
+                    max_files=max_files,
                 )
             )
             result_json = json.dumps(result, indent=2, ensure_ascii=False)
