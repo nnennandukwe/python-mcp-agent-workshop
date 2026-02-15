@@ -11,8 +11,6 @@ from .patterns import (
     BARE_EXCEPT_SUGGESTION,
     DICT_KEYS_ITERATION_MSG,
     DICT_KEYS_SUGGESTION,
-    DICT_SETITEM_IN_LOOP_MSG,
-    DICT_SETITEM_IN_LOOP_SUGGESTION,
     EQUALITY_FALSE_MSG,
     EQUALITY_FALSE_SUGGESTION,
     EQUALITY_NONE_MSG,
@@ -466,25 +464,14 @@ class PythonicChecker:
                 )
 
     def _check_dict_setitem_in_loop(self, node: astroid.For) -> None:
-        """Check for dict[key] = value in a loop that could be a comprehension."""
-        for stmt in node.body:
-            if not isinstance(stmt, astroid.Assign):
-                continue
+        """Check for dict[key] = value in a loop that could be a comprehension.
 
-            for target in stmt.targets:
-                if isinstance(target, astroid.Subscript):
-                    self._issues.append(
-                        PythonicIssue(
-                            tool="pythonic",
-                            category=IssueCategory.INEFFICIENT_COLLECTION_BUILDING,
-                            severity=Severity.INFO,
-                            message=DICT_SETITEM_IN_LOOP_MSG,
-                            line=stmt.lineno,
-                            column=stmt.col_offset,
-                            suggestion=DICT_SETITEM_IN_LOOP_SUGGESTION,
-                            code_snippet=self._get_source_line(stmt.lineno),
-                        )
-                    )
+        NOTE: This check is disabled to avoid false positives. Subscript assignments
+        can be for lists, arrays, or other containers, not just dicts. Proper detection
+        would require type inference to determine if the target is actually a dict.
+        """
+        # Disabled to prevent false positives for list/array subscript assignments
+        return
 
     def _check_redundant_code(self) -> None:
         """Check for redundant code patterns."""
