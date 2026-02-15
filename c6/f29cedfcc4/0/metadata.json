@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.4.2",
+  "checkpoint_id": "c6f29cedfcc4",
+  "session_id": "47e2181c-1bc9-4946-a239-101cdd69b5d1",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-15T13:35:48.335749Z",
+  "branch": "feat/pythonic-checker-42",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".claude/commands/counselors.md"
+  ],
+  "agent": "Claude Code",
+  "token_usage": {
+    "input_tokens": 8,
+    "cache_creation_tokens": 14416,
+    "cache_read_tokens": 205700,
+    "output_tokens": 2372,
+    "api_call_count": 6
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-15T13:35:48.327221Z",
+    "agent_lines": 0,
+    "human_added": 10,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 10,
+    "agent_percentage": 0
+  }
+}
