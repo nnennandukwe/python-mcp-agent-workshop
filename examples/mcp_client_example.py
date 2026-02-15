@@ -75,7 +75,12 @@ def send_request(request: dict[str, Any]) -> dict[str, Any]:
     )
 
     # Send request and get response
-    stdout, stderr = proc.communicate(input=message, timeout=30)
+    try:
+        stdout, stderr = proc.communicate(input=message, timeout=30)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        proc.communicate()
+        raise
 
     if proc.returncode != 0 and not stdout:
         raise RuntimeError(f"Server error: {stderr.decode('utf-8')}")

@@ -32,6 +32,7 @@ workshop-mcp-server = "workshop_mcp.server:sync_main"
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+markers = ["integration: end-to-end tests that spawn subprocesses (deselect with -m 'not integration')"]
 
 [tool.black]
 line-length = 88
