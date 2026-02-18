@@ -139,9 +139,12 @@ class WorkshopMCPServer:
         except ValueError:
             raise JsonRpcError(-32600, "Invalid Content-Length header")
 
-        body = stdin.read(content_length)
-        if len(body) != content_length:
-            return None
+        body = b""
+        while len(body) < content_length:
+            chunk = stdin.read(content_length - len(body))
+            if not chunk:
+                return None
+            body += chunk
 
         try:
             return json.loads(body.decode("utf-8"))
