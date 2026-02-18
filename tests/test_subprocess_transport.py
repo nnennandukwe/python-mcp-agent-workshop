@@ -134,11 +134,15 @@ class MCPSubprocessClient:
         return cast(dict[str, Any], json.loads(body.decode("utf-8")))
 
     def close(self) -> int:
-        """Close stdin, wait for exit, return exit code."""
+        """Close stdin, wait for exit, join reader threads, return exit code."""
         assert self.proc is not None
         if self.proc.stdin and not self.proc.stdin.closed:
             self.proc.stdin.close()
         self.proc.wait(timeout=self.timeout)
+        if self._reader_thread is not None:
+            self._reader_thread.join(timeout=self.timeout)
+        if self._stderr_reader_thread is not None:
+            self._stderr_reader_thread.join(timeout=self.timeout)
         return self.proc.returncode
 
     @property
