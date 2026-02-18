@@ -46,7 +46,9 @@ class MCPSubprocessClient:
         self.invocation = invocation or [sys.executable, "-m", "workshop_mcp.server"]
         self.proc: subprocess.Popen[bytes] | None = None
         self._stdout_chunks: queue.Queue[bytes | None] = queue.Queue()
+        self._stderr_chunks: list[bytes] = []
         self._reader_thread: threading.Thread | None = None
+        self._stderr_reader_thread: threading.Thread | None = None
         self._buffer = b""
 
     def start(self) -> None:
@@ -58,9 +60,11 @@ class MCPSubprocessClient:
             stderr=subprocess.PIPE,
             cwd=str(PROJECT_ROOT),
         )
-        # Start background thread reading raw stdout fd
+        # Start background threads reading raw stdout and stderr fds
         self._reader_thread = threading.Thread(target=self._stdout_reader, daemon=True)
         self._reader_thread.start()
+        self._stderr_reader_thread = threading.Thread(target=self._stderr_reader, daemon=True)
+        self._stderr_reader_thread.start()
 
     def _stdout_reader(self) -> None:
         """Background thread: read raw bytes from stdout fd into queue."""
@@ -75,6 +79,19 @@ class MCPSubprocessClient:
                 self._stdout_chunks.put(data)
             except OSError:
                 self._stdout_chunks.put(None)
+                break
+
+    def _stderr_reader(self) -> None:
+        """Background thread: drain stderr to prevent pipe deadlock."""
+        assert self.proc is not None and self.proc.stderr is not None
+        fd = self.proc.stderr.fileno()
+        while True:
+            try:
+                data = os.read(fd, 65536)
+                if not data:
+                    break
+                self._stderr_chunks.append(data)
+            except OSError:
                 break
 
     def send(self, request: dict[str, Any]) -> None:
@@ -126,9 +143,10 @@ class MCPSubprocessClient:
 
     @property
     def stderr_output(self) -> str:
-        """Read all captured stderr after process exits."""
-        assert self.proc is not None and self.proc.stderr is not None
-        return self.proc.stderr.read().decode("utf-8", errors="replace")
+        """Return all captured stderr after process exits."""
+        assert self._stderr_reader_thread is not None
+        self._stderr_reader_thread.join(timeout=self.timeout)
+        return b"".join(self._stderr_chunks).decode("utf-8", errors="replace")
 
     def remaining_stdout(self) -> bytes:
         """Drain any remaining stdout data after process exits."""
