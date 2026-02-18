@@ -97,7 +97,7 @@ class MCPSubprocessClient:
     def send(self, request: dict[str, Any]) -> None:
         """Frame and write a JSON-RPC message to server stdin."""
         assert self.proc is not None and self.proc.stdin is not None
-        body = json.dumps(request).encode("utf-8")
+        body = json.dumps(request, ensure_ascii=False).encode("utf-8")
         header = f"Content-Length: {len(body)}\r\n\r\n".encode()
         self.proc.stdin.write(header + body)
         self.proc.stdin.flush()
